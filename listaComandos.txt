@@ -1,0 +1,114 @@
+🧾 📦 LISTA DE COMANDOS USADOS (PASO A PASO)
+Voy a ordenártelo por fases para que tenga sentido 👍
+
+🐳 🔹 FASE 1 — Docker básico (primer contenedor Python)
+🔧 Construir imagen
+ build -t ble-service .
+👉 Crea una imagen Docker a partir del Dockerfile
+👉 -t asigna un nombre
+
+▶️ Ejecutar contenedor
+ run -it ble-service
+👉 Arranca el contenedor
+👉 -it = modo interactivo (ves logs en consola)
+
+📦 🔹 FASE 2 — Instalación de dependencias Python
+🔧 Reinstalar imagen tras cambios
+ build -t ble-service .
+👉 Necesario cuando cambias:
+
+requirements.txt
+Dockerfile
+
+
+🌐 🔹 FASE 3 — Pruebas HTTP (antes de MQTT)
+▶️ Ejecutar contenedor
+ run -it ble-service
+
+⚙️ Backend .NET
+dotnet run
+👉 Arranca API en local
+
+📡 Probar conexión local
+ipconfig
+👉 Obtener IP del PC para conectar desde Docker
+
+🔥 Abrir puerto en firewall
+netsh advfirewall firewall add rule name="BLE API" dir=in action=allow protocol=TCP localport=5000
+
+🧱 🔹 FASE 4 — Crear backend .NET
+Crear proyecto
+dotnet new webapi -n BackendBLE
+
+Entrar en carpeta
+cd BackendBLE
+
+🐍 🔹 FASE 5 — Problemas con Python local
+Instalar dependencias Python en local
+python -m pip install requests
+
+📡 🔹 FASE 6 — MQTT (inicio real IoT)
+Levantar broker manual
+ run -it -p 1883:1883 eclipse-mosquitto
+👉 Crea el servidor MQTT
+
+Escuchar mensajes MQTT (debug)
+ run -it eclipse-mosquitto mosquitto_sub -h host.docker.internal -t ble/readings
+👉 Te permite ver lo que se publica
+
+🐳 🔹 FASE 7 — Docker Compose (gran salto)
+Arrancar todo el sistema
+-compose up --build
+👉 Construye y ejecuta:
+
+Python
+MQTT
+.NET
+
+
+Parar contenedores
+-compose down
+
+📦 🔹 FASE 8 — Paquetes .NET
+Instalar SQLite (para luego)
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+
+Instalar MQTTnet
+dotnet add package MQTTnet
+
+Instalar versión específica
+dotnet add package MQTTnet --version 4.3.0
+
+🧹 🔹 FASE 9 — Limpieza proyecto
+Limpiar compilación
+dotnet clean
+👉 elimina bin/ y obj/
+
+✅ 🔹 FASE 10 — Comprobaciones útiles
+Ver imágenes Docker
+ images
+
+Ver contenedores en ejecución
+ ps
+
+🧠 🔥 RESUMEN MENTAL (MUY IMPORTANTE)
+Lo que has hecho con estos comandos:
+1. Crear contenedor Python
+2. Crear backend .NET
+3. Levantar MQTT
+4. Conectar todo con Docker Compose
+5. Pasar de HTTP → MQTT
+6. Crear sistema distribuido
+
+
+🧭 MAPA FINAL DE TU SISTEMA
+docker-compose up
+      ↓
+┌──────────────┐
+│   mqtt       │
+└─────┬────────┘
+      │
+┌─────▼────────┐        ┌──────────────┐
+│ ble-service  │  --->  │   backend    │
+│ (Python)     │        │ (.NET)       │
+└──────────────┘        └──────────────┘

@@ -1,0 +1,18 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+
+  ble-service:
+    build: ./ble-service
+    container_name: ble-service
+    depends_on:
+      - mqtt
+
+  backend:
+    build: ./backend
+    container_name: backend
+    depends_on:
+      - mqtt

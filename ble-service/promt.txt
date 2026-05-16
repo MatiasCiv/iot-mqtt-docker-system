@@ -1,0 +1,111 @@
+Estoy desarrollando un sistema IoT para monitorización de cultivos basado en microservicios y desplegado con Docker.
+
+🔥 Estado actual del proyecto:
+
+✅ Arquitectura definida (microservicios en contenedores Docker)
+✅ Servicio de ingestión en Python funcionando dentro de Docker
+✅ Backend en .NET funcionando como API REST
+✅ Comunicación entre servicios verificada (HTTP)
+✅ Persistencia de datos implementada con SQLite
+
+---
+
+🏗️ Arquitectura actual:
+
+1. Servicio de Ingesta (Python - "El Oído"):
+- Lenguaje: Python 3.11
+- Librerías: bleak (BLE), requests (HTTP)
+- Despliegue: contenedor Docker
+- Funcionalidad actual:
+  - Simulación de datos de sensores (temperatura y humedad)
+  - Envío de datos mediante POST a API .NET cada 5 segundos
+- Estado BLE real:
+  - Preparado (dependencias instaladas)
+  - Pendiente de ejecución en Raspberry Pi (Windows no soporta BLE en Docker)
+
+---
+
+2. Servicio Central (Backend .NET - "El Cerebro"):
+- Tecnología: ASP.NET Core (Web API)
+- Endpoint activo:
+  POST /api/ble
+- Funcionalidad:
+  - Recepción de datos JSON desde Python
+  - Parseo automático a modelo Reading
+  - Persistencia en SQLite
+- Base de datos:
+  - SQLite local (readings.db)
+- Modelo actual:
+
+Reading:
+- Id (int)
+- DeviceId (string)
+- Temperatura (double)
+- Humedad (double)
+- Timestamp (DateTime)
+
+---
+
+🔌 Flujo de datos actual:
+
+Python (Docker)
+↓
+HTTP POST (cada 5s)
+↓
+API .NET
+↓
+SQLite (persistencia)
+
+---
+
+📡 Ejemplo de dato enviado:
+
+{
+  "deviceId": "ESP32_001",
+  "temperatura": 24.25,
+  "humedad": 79.4
+}
+
+---
+
+🐳 Estado Docker:
+
+✅ Imagen creada correctamente
+✅ Contenedor ejecutándose correctamente
+✅ Comunicación con host funcionando
+✅ Preparado para docker-compose
+
+---
+
+⚠️ Limitaciones actuales:
+
+- BLE real no probado (entorno Windows)
+- Falta despliegue en Raspberry Pi
+- No hay visualización de datos aún
+- No hay lógica de negocio avanzada (recetas)
+
+---
+
+🚀 Próximos pasos:
+
+1. Consultas a datos (GET endpoints en .NET)
+2. Integración con Grafana para visualización
+3. Implementación de sistema de "recetas de cultivo"
+4. Despliegue en Raspberry Pi con BLE real
+5. Docker Compose para orquestación completa
+6. Evaluar migración a PostgreSQL
+
+---
+
+🎯 Objetivo final:
+
+Sistema IoT autónomo capaz de:
+- Leer sensores físicos vía BLE
+- Procesar datos en backend
+- Evaluar condiciones de cultivo
+- Visualizar métricas en tiempo real
+- Escalar mediante arquitectura modular
+
+---
+
+Estoy buscando mejorar o ampliar este sistema manteniendo una arquitectura limpia, escalable y orientada a microservicios.
