@@ -1,0 +1,161 @@
+Estoy desarrollando un sistema IoT distribuido para monitorización y control de cultivos basado en microservicios y desplegado mediante Docker Compose.
+
+✅ Estado actual del proyecto (100% operativo):
+
+He construido un sistema funcional con arquitectura desacoplada basada en MQTT, con los siguientes servicios:
+
+---
+
+🏗️ Arquitectura general:
+
+El sistema está compuesto por tres contenedores principales:
+
+1. Servicio de Ingesta (Python - "BLE Service"):
+- Lenguaje: Python 3.11
+- Librerías: paho-mqtt, bleak (preparado), random (simulación)
+- Función actual:
+  - Generación de datos simulados de sensores (temperatura y humedad)
+  - Publicación periódica en MQTT cada ~5 segundos
+- Modo actual:
+  - SIMULACIÓN (no BLE real aún)
+- Topic utilizado:
+  - "ble/readings"
+
+---
+
+2. Broker MQTT (Mosquitto):
+- Tecnología: Eclipse Mosquitto
+- Puerto: 1883
+- Función:
+  - Gestionar la comunicación desacoplada mediante publish/subscribe
+- Estado:
+  ✅ 100% funcional
+  ✅ múltiples clientes conectados (Python + .NET)
+
+---
+
+3. Backend (.NET - "El Cerebro"):
+- Tecnología: ASP.NET Core (NET 8)
+- Librería MQTT: MQTTnet
+- Función:
+  - Suscripción al topic "ble/readings"
+  - Recepción de datos en tiempo real
+  - Procesamiento inicial (actualmente logging en consola)
+- Estado actual:
+  ✅ Conectado a MQTT
+  ✅ Suscripción activa
+  ✅ Recibiendo mensajes correctamente
+
+Ejemplo de mensaje procesado:
+{
+  "deviceId": "ESP32_SIM",
+  "temperatura": 27.1,
+  "humedad": 43.17
+}
+
+---
+
+🐳 Orquestación:
+
+Todo el sistema está orquestado mediante Docker Compose:
+
+Servicios definidos:
+- mqtt
+- ble-service
+- backend
+
+Red interna Docker:
+- Los servicios se comunican mediante hostname (ej: "mqtt")
+
+---
+
+📡 Flujo de datos actual:
+
+[Python BLE Service]
+        ↓ publish
+     MQTT Broker
+        ↓ subscribe
+   [Backend .NET]
+
+✅ Comunicación asincrónica
+✅ Sistema desacoplado
+✅ Arquitectura event-driven
+
+---
+
+⚙️ Estado técnico:
+
+✅ Docker funcionando correctamente
+✅ Docker Compose operativo
+✅ Construcción de imágenes automatizada
+✅ Comunicación inter-servicios estable
+✅ Migración de HTTP → MQTT completada
+✅ Sistema listo para producción base
+
+---
+
+⚠️ Limitaciones actuales:
+
+- BLE real no probado aún (modo simulación activo)
+- No persistencia de datos todavía
+- No visualización (Grafana pendiente)
+- No lógica de negocio avanzada
+- No control de actuadores aún
+
+---
+
+🚀 Próximos pasos planificados:
+
+1. Persistencia de datos:
+   - Guardar lecturas en SQLite desde el backend
+   - Definir modelo de datos (Reading)
+
+2. API de consultas:
+   - Crear endpoints GET para histórico de datos
+
+3. Visualización:
+   - Integración con Grafana
+   - Dashboards de temperatura/humedad
+
+4. Lógica de cultivo:
+   - Sistema de “recetas” (rangos óptimos por planta)
+   - Evaluación automática de condiciones
+
+5. Control de actuadores:
+   - Publicación MQTT desde backend
+   - Python escucha comandos
+   - Control de relés vía BLE (Arduino)
+
+6. BLE real:
+   - Migración a Raspberry Pi
+   - Activación modo BLE con bleak
+   - Integración con dispositivos ESP32
+
+---
+
+🎯 Objetivo final:
+
+Construir un sistema IoT autónomo capaz de:
+
+- Leer sensores físicos vía BLE
+- Procesar datos en tiempo real
+- Evaluar condiciones de cultivo automáticamente
+- Tomar decisiones (riego, alertas)
+- Controlar actuadores físicos
+- Visualizar datos históricos y en vivo
+- Escalar mediante arquitectura distribuida
+
+---
+
+💡 Principios de diseño aplicados:
+
+- Microservicios desacoplados
+- Arquitectura basada en eventos (MQTT)
+- Contenerización completa (Docker)
+- Portabilidad (Windows → Linux → Raspberry)
+- Separación de responsabilidades
+
+---
+
+El objetivo es evolucionar este sistema hacia un entorno real de producción en Raspberry Pi, manteniendo una arquitectura limpia, escalable y robusta.
+``
