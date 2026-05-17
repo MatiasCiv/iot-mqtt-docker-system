@@ -63,6 +63,7 @@ obj/Debug/net8.0/
  WebApplication1.AssemblyInfo.cs
  WebApplication1.GlobalUsings.g.cs
 Program.cs
+Services/AutomationService.cs
 
 [metadataReferences]
 <NUGET>/microsoft.aspnetcore.app.ref/8.0.22/ref/net8.0/

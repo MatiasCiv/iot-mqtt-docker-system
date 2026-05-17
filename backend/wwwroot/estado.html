@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Estado</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+        }
+
+        .bloque {
+            background: #1e293b;
+            padding: 15px;
+            margin: 15px auto;
+            width: 320px;
+            border-radius: 8px;
+        }
+        
+        .ok {
+            border: 2px solid #22c55e;
+        }
+
+        .warning {
+            border: 2px solid #facc15;
+        }
+
+        .error {
+            border: 2px solid #ef4444;
+        }
+
+        .estado-ok {
+            color: #22c55e;
+        }
+
+        .estado-warning {
+            color: #facc15;
+        }
+
+        .estado-error {
+            color: #ef4444;
+        }
+        
+        .sin-datos {
+            border: 2px solid #6b7280;
+        }
+
+        .estado-sin-datos {
+            color: #9ca3af;
+        }
+
+
+    </style>
+</head>
+
+<body>
+
+<h1>📊 Estado del Sistema</h1>
+
+<div id="infoCultivo" class="bloque"></div>
+<div id="infoEtapa" class="bloque"></div>
+<div id="infoSensor" class="bloque"></div>
+
+<script>
+
+async function cargarEstado() {
+
+    const cont = document.body;
+
+    // limpiar (mantener título)
+    document.querySelectorAll(".bloque").forEach(e => e.remove());
+
+    const cultivos = await fetch("/cultivos").then(r => r.json());
+
+    if (cultivos.length === 0) {
+        cont.innerHTML += "<p>No hay cultivos</p>";
+        return;
+    }
+
+    // 🔥 recorrer todos los cultivos
+    for (const cultivo of cultivos) {
+
+        try {
+
+            // 🔥 Determinar estado
+            let estado = "OK";
+            let clase = "ok";
+            let textoEstado = "✅ OK";
+
+                        
+            // ✅ etapa actual
+            const etapa = await fetch(`/cultivos/${cultivo.id}/etapa-actual`)
+                .then(r => r.json());
+
+            // ✅ obtener etapas completas
+            const etapas = await fetch(`/etapas/${cultivo.id}`)
+                .then(r => r.json());
+
+            const etapaActual = etapas.find(e => e.nombre === etapa.etapaActual);
+
+            // ✅ obtener última lectura REAL
+            const lecturas = await fetch(`/readings/${cultivo.sensorId}`)
+                .then(r => r.json());
+
+            const ultima = lecturas[0];
+
+            const temp = ultima ?.temperatura;
+            const hum = ultima ?.humedad;
+
+
+            
+            const ahora = new Date();
+
+            // ✅ si no hay datos -> sin datos
+            if (!ultima || temp == null || hum == null) {
+                estado = "SIN_DATOS";
+                clase = "sin-datos";
+                textoEstado = "⚫ Sin datos";
+
+            } else {
+
+                const tiempoLectura = new Date(ultima.timestamp+ "Z");
+                const minutos = (ahora - tiempoLectura) / 60000;
+
+                // ✅ datos antiguos
+                if (minutos > 10) {
+                    estado = "SIN_DATOS";
+                    clase = "sin-datos";
+                    textoEstado = "⚫ Datos antiguos";
+
+                } else if (etapaActual) {
+
+                    const { humedadMin, humedadMax, temperaturaMin, temperaturaMax } = etapaActual;
+
+                    // 🔴 ERROR
+                    if (
+                        hum < humedadMin || hum > humedadMax ||
+                        temp < temperaturaMin || temp > temperaturaMax
+                    ) {
+                        estado = "ERROR";
+                        clase = "error";
+                        textoEstado = "🔴 Fuera de rango";
+                    }
+
+                    // 🟡 WARNING
+                    else if (
+                        Math.abs(hum - humedadMin) < 5 ||
+                        Math.abs(hum - humedadMax) < 5 ||
+                        Math.abs(temp - temperaturaMin) < 2 ||
+                        Math.abs(temp - temperaturaMax) < 2
+                    ) {
+                        estado = "WARNING";
+                        clase = "warning";
+                        textoEstado = "⚠️ Cerca de límite";
+                    }
+                }
+            }
+
+
+
+            // ✅ crear tarjeta
+            const div = document.createElement("div");
+            div.className = `bloque ${clase}`;
+
+            // 🛠️ CORRECCIÓN: Se cambiaron las referencias huérfanas 'etapa' y 'ultima' por propiedades de 'cultivo'.
+            div.innerHTML = `
+                🌱 <b>${cultivo.nombre}</b><br>
+                📡 ${cultivo.sensorId}<br><br>
+
+                
+                📍 Etapa: <b>${etapa.etapaActual}</b>
+                (${etapa.diasTranscurridos} días)<br>
+
+
+                🌡️ ${temp ?? "-"} °C<br>
+                💧 ${hum ?? "-"} %<br>
+                🕒 ${ultima ? new Date(ultima.timestamp + "Z").toLocaleTimeString() : "-"}<br><br>
+
+                <span class="estado-${clase}">
+                    ${textoEstado}
+                </span>
+            `;
+
+
+            cont.appendChild(div);
+
+        } catch (error) {
+            console.error("Error con cultivo:", cultivo, error);
+        }
+    }
+}
+
+// refresco automático
+setInterval(cargarEstado, 60000);
+cargarEstado();
+
+</script>
+
+</body>
+</html>

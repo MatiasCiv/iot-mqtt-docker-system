@@ -10,6 +10,8 @@ using WebApplication1.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHostedService<AutomationService>();
+
 // ✅ Configurar SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=data/readings.db")
@@ -170,6 +172,43 @@ app.MapDelete("/etapas/{id}", async (int id, AppDbContext db) =>
     return Results.Ok();
 });
 
+// CALCULAR DIAS ETAPA
+app.MapGet("/cultivos/{id}/etapa-actual", async (int id, AppDbContext db) =>
+{
+    var cultivo = await db.Cultivos.FindAsync(id);
+
+    if (cultivo == null)
+        return Results.NotFound();
+
+    var etapas = await db.Etapas
+        .Where(e => e.CultivoId == id)
+        .OrderBy(e => e.Id)
+        .ToListAsync();
+
+    var dias = (DateTime.UtcNow - cultivo.FechaInicio).Days;
+
+    int acumulado = 0;
+
+    foreach (var etapa in etapas)
+    {
+        acumulado += etapa.DuracionDias;
+
+        if (dias <= acumulado)
+        {
+            return Results.Ok(new
+            {
+                etapaActual = etapa.Nombre,
+                diasTranscurridos = dias
+            });
+        }
+    }
+
+    return Results.Ok(new
+    {
+        etapaActual = "Finalizado",
+        diasTranscurridos = dias
+    });
+});
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
