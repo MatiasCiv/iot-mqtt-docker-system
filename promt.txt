@@ -1,161 +1,220 @@
-Estoy desarrollando un sistema IoT distribuido para monitorización y control de cultivos basado en microservicios y desplegado mediante Docker Compose.
+Estoy desarrollando un sistema IoT modular para monitorización y control de cultivos, basado en arquitectura de microservicios y comunicación mediante MQTT, desplegado con Docker Compose.
 
-✅ Estado actual del proyecto (100% operativo):
+✅ Estado actual del sistema:
 
-He construido un sistema funcional con arquitectura desacoplada basada en MQTT, con los siguientes servicios:
+El sistema está completamente operativo en entorno local (Windows + Docker) y consta de tres servicios principales:
 
 ---
 
-🏗️ Arquitectura general:
+🏗️ Arquitectura general
 
-El sistema está compuesto por tres contenedores principales:
+El sistema sigue una arquitectura desacoplada basada en eventos:
 
-1. Servicio de Ingesta (Python - "BLE Service"):
+[Python BLE Service] → (MQTT) → [Backend .NET] → (SQLite)
+
+Y ahora incluye interfaz web básica:
+
+[Navegador] → (HTTP API .NET) → (SQLite)
+
+---
+
+🔧 Servicios implementados
+
+1. ✅ Servicio de ingesta (Python - ble-service)
+
 - Lenguaje: Python 3.11
-- Librerías: paho-mqtt, bleak (preparado), random (simulación)
-- Función actual:
-  - Generación de datos simulados de sensores (temperatura y humedad)
-  - Publicación periódica en MQTT cada ~5 segundos
-- Modo actual:
-  - SIMULACIÓN (no BLE real aún)
-- Topic utilizado:
-  - "ble/readings"
-
----
-
-2. Broker MQTT (Mosquitto):
-- Tecnología: Eclipse Mosquitto
-- Puerto: 1883
+- Contenedor Docker: ble-service
+- Librerías: paho-mqtt
 - Función:
-  - Gestionar la comunicación desacoplada mediante publish/subscribe
-- Estado:
-  ✅ 100% funcional
-  ✅ múltiples clientes conectados (Python + .NET)
+  - Simulación de datos de sensores (temperatura y humedad)
+  - Publicación cada 5 segundos
+- Topic MQTT:
+  "ble/readings"
 
----
-
-3. Backend (.NET - "El Cerebro"):
-- Tecnología: ASP.NET Core (NET 8)
-- Librería MQTT: MQTTnet
-- Función:
-  - Suscripción al topic "ble/readings"
-  - Recepción de datos en tiempo real
-  - Procesamiento inicial (actualmente logging en consola)
-- Estado actual:
-  ✅ Conectado a MQTT
-  ✅ Suscripción activa
-  ✅ Recibiendo mensajes correctamente
-
-Ejemplo de mensaje procesado:
+Ejemplo de mensaje:
 {
   "deviceId": "ESP32_SIM",
-  "temperatura": 27.1,
-  "humedad": 43.17
+  "temperatura": 22.3,
+  "humedad": 45.1
 }
 
 ---
 
-🐳 Orquestación:
+2. ✅ Broker MQTT (Mosquitto)
 
-Todo el sistema está orquestado mediante Docker Compose:
+- Contenedor: mqtt
+- Puerto expuesto: 1883
+- Función:
+  - Canal central de comunicación desacoplada
+- Flujo:
+  Python → publish
+  Backend → subscribe
 
-Servicios definidos:
+---
+
+3. ✅ Backend (.NET 8 - Web API)
+
+- Framework: ASP.NET Core (Minimal API)
+- Librería MQTT: MQTTnet
+- ORM: Entity Framework Core (SQLite)
+
+Funciones:
+
+✅ Recepción de datos MQTT
+✅ Deserialización JSON → modelo Reading
+✅ Persistencia en base de datos SQLite
+✅ Exposición de API REST
+
+---
+
+📦 Base de datos
+
+- Motor: SQLite
+- Archivo: readings.db
+- Ubicación: volumen Docker en carpeta local `/data`
+
+Modelo:
+
+Reading:
+- Id (int)
+- DeviceId (string)
+- Temperatura (double)
+- Humedad (double)
+- Timestamp (DateTime)
+
+Configuración clave:
+
+Data Source=data/readings.db
+
+Modo WAL activado:
+PRAGMA journal_mode=WAL;
+
+---
+
+🔁 Flujo de datos completo
+
+1. Python genera datos simulados
+2. Publica en MQTT (ble/readings)
+3. Backend recibe evento MQTT
+4. Deserializa JSON → objeto Reading
+5. Guarda en SQLite con SaveChangesAsync()
+6. API REST permite consultar datos
+
+---
+
+🌐 API REST disponible
+
+GET /readings
+→ devuelve últimas 50 lecturas
+
+GET /readings/{deviceId}
+→ filtra por dispositivo
+
+Ejemplo:
+http://localhost:5000/readings
+
+---
+
+🐳 Docker / Orquestación
+
+Se utiliza docker-compose con tres servicios:
+
 - mqtt
 - ble-service
 - backend
 
 Red interna Docker:
-- Los servicios se comunican mediante hostname (ej: "mqtt")
+- backend conecta a mqtt por hostname "mqtt"
+
+Volumen persistente:
+- ./data:/app/data
+
+Puerto expuesto:
+- backend → 5000
 
 ---
 
-📡 Flujo de datos actual:
+🖥️ Interfaz web (UI básica)
 
-[Python BLE Service]
-        ↓ publish
-     MQTT Broker
-        ↓ subscribe
-   [Backend .NET]
+Se sirve desde el backend (.NET) usando archivos estáticos:
 
-✅ Comunicación asincrónica
-✅ Sistema desacoplado
-✅ Arquitectura event-driven
+wwwroot/index.html
 
----
+Características actuales:
 
-⚙️ Estado técnico:
+✅ Interfaz limpia
+✅ Fondo oscuro profesional
+✅ Título: "🌱 Sistema de Cultivo"
+✅ Reloj en tiempo real (JS)
+✅ Botones de navegación:
 
-✅ Docker funcionando correctamente
-✅ Docker Compose operativo
-✅ Construcción de imágenes automatizada
-✅ Comunicación inter-servicios estable
-✅ Migración de HTTP → MQTT completada
-✅ Sistema listo para producción base
+- Recetas        → /recetas (pendiente)
+- Estado Sensores → /estado (pendiente)
+- Control Manual  → /control (pendiente)
+
+Tecnología:
+- HTML + CSS + JS puro (sin framework)
 
 ---
 
-⚠️ Limitaciones actuales:
+⚠️ Problemas ya resueltos
 
-- BLE real no probado aún (modo simulación activo)
-- No persistencia de datos todavía
-- No visualización (Grafana pendiente)
-- No lógica de negocio avanzada
-- No control de actuadores aún
-
----
-
-🚀 Próximos pasos planificados:
-
-1. Persistencia de datos:
-   - Guardar lecturas en SQLite desde el backend
-   - Definir modelo de datos (Reading)
-
-2. API de consultas:
-   - Crear endpoints GET para histórico de datos
-
-3. Visualización:
-   - Integración con Grafana
-   - Dashboards de temperatura/humedad
-
-4. Lógica de cultivo:
-   - Sistema de “recetas” (rangos óptimos por planta)
-   - Evaluación automática de condiciones
-
-5. Control de actuadores:
-   - Publicación MQTT desde backend
-   - Python escucha comandos
-   - Control de relés vía BLE (Arduino)
-
-6. BLE real:
-   - Migración a Raspberry Pi
-   - Activación modo BLE con bleak
-   - Integración con dispositivos ESP32
+✔ Problemas de encoding UTF-8
+✔ HTML roto (botones incorrectos)
+✔ JS ejecutándose como texto
+✔ Docker networking
+✔ Persistencia DB con volúmenes
+✔ Conflictos SQLite (WAL + cierre clientes)
+✔ Deserialización JSON (JsonPropertyName)
 
 ---
 
-🎯 Objetivo final:
+🚀 Próximos pasos planificados
 
-Construir un sistema IoT autónomo capaz de:
+1. UI dinámica (prioridad actual)
+   - Pantalla "Estado Sensores"
+   - Fetch a /readings
+   - Mostrar datos en tiempo real
 
-- Leer sensores físicos vía BLE
-- Procesar datos en tiempo real
-- Evaluar condiciones de cultivo automáticamente
-- Tomar decisiones (riego, alertas)
+2. Sistema de recetas
+   - Nueva DB o tabla
+   - Configuración de cultivo
+
+3. Control bidireccional
+   - .NET → MQTT
+   - Python → Arduino BLE
+   - Control de relés
+
+4. Migración a entorno real
+   - Raspberry Pi
+   - BLE real con bleak
+
+5. Visualización avanzada
+   - Grafana dashboards
+
+---
+
+🎯 Objetivo final
+
+Sistema IoT autónomo capaz de:
+
+- Leer sensores vía BLE
+- Procesar datos en backend
+- Guardar histórico
+- Visualizar en tiempo real
+- Aplicar reglas de cultivo
 - Controlar actuadores físicos
-- Visualizar datos históricos y en vivo
-- Escalar mediante arquitectura distribuida
 
 ---
 
-💡 Principios de diseño aplicados:
+🧠 Conceptos clave implementados
 
+- Arquitectura "event-driven"
+- MQTT pub/sub
 - Microservicios desacoplados
-- Arquitectura basada en eventos (MQTT)
-- Contenerización completa (Docker)
-- Portabilidad (Windows → Linux → Raspberry)
-- Separación de responsabilidades
+- Persistencia con ORM (EF Core)
+- API REST
+- Contenerización (Docker)
+- UI básica integrada
 
----
-
-El objetivo es evolucionar este sistema hacia un entorno real de producción en Raspberry Pi, manteniendo una arquitectura limpia, escalable y robusta.
-``
+El sistema está ahora en fase de desarrollo frontend (UI dinámica) tras haber completado backend y persistencia.

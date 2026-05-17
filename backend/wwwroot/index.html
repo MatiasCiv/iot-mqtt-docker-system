@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>IoT Cultivo</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            text-align: center; 
+            background: #0f172a; 
+            color: white; 
+            margin: 0; 
+        }
+        h1 { 
+            margin-top: 40px; 
+        }
+        .menu { 
+            margin-top: 50px; 
+        }
+        button { 
+            width: 250px; 
+            height: 50px; 
+            margin: 10px auto; 
+            display: block; 
+            font-size: 18px; 
+            border: none; 
+            border-radius: 8px; 
+            background: #22c55e; 
+            color: white; 
+            cursor: pointer; 
+        }
+        button:hover { 
+            background: #16a34a; 
+        }
+        .datetime { 
+            position: absolute; 
+            top: 10px; 
+            right: 20px; 
+            font-size: 14px; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="datetime" class="datetime"></div>
+    
+    <h1>🌱 Sistema de Cultivo</h1> 
+    
+    <div class="menu"> 
+        <button onclick="location.href='/recetas.html'">Recetas</button>
+        <button onclick="location.href='/estado'">Estado</button>
+        <button onclick="location.href='/control'">Control</button>
+    </div>
+
+    <script> 
+        function actualizarHora() { 
+            const ahora = new Date(); 
+            document.getElementById("datetime").innerText = ahora.toLocaleString(); 
+        } 
+        setInterval(actualizarHora, 1000); 
+        actualizarHora(); 
+    </script>
+
+</body> 
+</html>

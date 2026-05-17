@@ -15,4 +15,9 @@ services:
     build: ./backend
     container_name: backend
     depends_on:
-      - mqtt
+      - mqtt       
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+

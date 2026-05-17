@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Recetas</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        select, input {
+            padding: 8px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            background: #22c55e;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* Nuevo estilo para identificar los botones de eliminación */
+        .btn-borrar {
+            background: #ef4444;
+            padding: 6px 12px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .btn-borrar:hover {
+            background: #dc2626;
+        }
+
+        .bloque {
+            background: #1e293b;
+            margin: 10px auto;
+            padding: 10px;
+            width: 300px;
+            border-radius: 8px;
+        }
+        
+        .seccion-cultivos {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>📋 Gestión de Cultivos</h1>
+
+
+<h2>➕ Crear nuevo cultivo</h2>
+
+<input id="nombreCultivo" placeholder="Nombre cultivo">
+<input id="sensorCultivo" placeholder="Sensor (ESP32_001)"><br>
+
+<button onclick="crearCultivo()">Guardar cultivo</button>
+
+
+
+
+
+<!-- El contenedor que faltaba en tu HTML para que el script no se rompa -->
+<div id="listaCultivos"></div>
+
+
+<hr>
+
+<h2>🌱 Etapas</h2>
+
+<div class="seccion-cultivos">
+    <!-- SELECT CULTIVOS -->
+    <label for="cultivos">Selecciona un cultivo para ver sus etapas:</label>
+    <select id="cultivos" onchange="cargarEtapas()"></select>
+</div>
+
+<div id="listaEtapas"></div>
+
+<hr>
+
+<h3>➕ Añadir etapa</h3>
+
+<input id="nombreEtapa" placeholder="Nombre"><br>
+<input id="dias" placeholder="Duración días"><br>
+
+<input id="humMin" placeholder="Humedad min">
+<input id="humMax" placeholder="Humedad max"><br>
+
+<input id="tempMin" placeholder="Temp min">
+<input id="tempMax" placeholder="Temp max"><br>
+
+<button onclick="crearEtapa()">Guardar etapa</button>
+
+<script>
+
+// ✅ cargar cultivos
+async function cargarCultivos() {
+    try {
+        const res = await fetch("/cultivos");
+        const data = await res.json();
+
+        const select = document.getElementById("cultivos");
+        const cont = document.getElementById("listaCultivos");
+
+        select.innerHTML = "";
+        cont.innerHTML = "<h3>Lista Global de Cultivos</h3>";
+
+        data.forEach(c => {
+            // ✅ llenar selector
+            select.innerHTML += `
+                <option value="${c.id}">
+                    ${c.nombre}
+                </option>
+            `;
+
+            // ✅ mostrar listado bonito con botón rojo de borrar
+            cont.innerHTML += `
+                <div class="bloque">
+                    🌱 <b>${c.nombre}</b> (${c.sensorId}) <br>
+                    <button class="btn-borrar" onclick="borrarCultivo(${c.id})">❌ Borrar Cultivo</button>
+                </div>
+            `;
+        });
+
+        if (data.length > 0) {
+            cargarEtapas();
+        } else {
+            document.getElementById("listaEtapas").innerHTML = "<p>No hay cultivos disponibles.</p>";
+        }
+    } catch (error) {
+        console.error("Error al cargar cultivos:", error);
+    }
+}
+
+// ✅ cargar etapas
+async function cargarEtapas() {
+    try {
+        const cultivoId = document.getElementById("cultivos").value;
+        if (!cultivoId) return;
+
+        const res = await fetch(`/etapas/${cultivoId}`);
+        const data = await res.json();
+
+        const cont = document.getElementById("listaEtapas");
+        cont.innerHTML = "";
+
+        if (data.length === 0) {
+            cont.innerHTML = "<p>Este cultivo aún no tiene etapas configuradas.</p>";
+            return;
+        }
+
+        data.forEach(e => {
+            cont.innerHTML += `
+                <div class="bloque">
+                    <b>${e.nombre}</b><br>
+                    📅 ${e.duracionDias} días<br>
+                    💧 ${e.humedadMin}% - ${e.humedadMax}%<br>
+                    🌡️ ${e.temperaturaMin}°C - ${e.temperaturaMax}°C<br>
+                    <button class="btn-borrar" onclick="borrarEtapa(${e.id})">❌ Borrar etapa</button>
+                </div>
+            `;
+        });
+    } catch (error) {
+        console.error("Error al cargar etapas:", error);
+    }
+}
+
+// ✅ crear etapa
+async function crearEtapa() {
+
+    const cultivoId = document.getElementById("cultivos").value;
+
+    const nombre = document.getElementById("nombreEtapa").value.trim();
+    const dias = document.getElementById("dias").value;
+
+    const humMin = document.getElementById("humMin").value;
+    const humMax = document.getElementById("humMax").value;
+
+    const tempMin = document.getElementById("tempMin").value;
+    const tempMax = document.getElementById("tempMax").value;
+
+    // ✅ VALIDACIONES
+
+    if (!cultivoId) {
+        alert("Selecciona un cultivo");
+        return;
+    }
+
+    if (!nombre) {
+        alert("El nombre de la etapa es obligatorio");
+        return;
+    }
+
+    if (!dias || isNaN(dias) || parseInt(dias) <= 0) {
+        alert("Duración válida requerida");
+        return;
+    }
+
+    if (!humMin || !humMax) {
+        alert("Completa humedad mínima y máxima");
+        return;
+    }
+
+    if (isNaN(humMin) || isNaN(humMax)) {
+        alert("Humedad debe ser numérica");
+        return;
+    }
+
+    if (parseFloat(humMin) > parseFloat(humMax)) {
+        alert("Humedad mínima no puede ser mayor que la máxima");
+        return;
+    }
+
+    if (!tempMin || !tempMax) {
+        alert("Completa temperatura mínima y máxima");
+        return;
+    }
+
+    if (isNaN(tempMin) || isNaN(tempMax)) {
+        alert("Temperatura debe ser numérica");
+        return;
+    }
+
+    if (parseFloat(tempMin) > parseFloat(tempMax)) {
+        alert("Temperatura mínima no puede ser mayor que la máxima");
+        return;
+    }
+
+    // ✅ CREACIÓN OBJETO
+
+    const etapa = {
+        cultivoId: parseInt(cultivoId),
+        nombre: nombre,
+        duracionDias: parseInt(dias),
+        humedadMin: parseFloat(humMin),
+        humedadMax: parseFloat(humMax),
+        temperaturaMin: parseFloat(tempMin),
+        temperaturaMax: parseFloat(tempMax)
+    };
+
+    await fetch("/etapas", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(etapa)
+    });
+
+    // ✅ limpiar campos
+    document.getElementById("nombreEtapa").value = "";
+    document.getElementById("dias").value = "";
+    document.getElementById("humMin").value = "";
+    document.getElementById("humMax").value = "";
+    document.getElementById("tempMin").value = "";
+    document.getElementById("tempMax").value = "";
+
+    cargarEtapas();
+}
+
+// ✅ BORRAR CULTIVOS 
+async function borrarCultivo(id) {
+    if (!confirm("¿Seguro que quieres borrar este cultivo? Se perderán sus datos.")) return;
+
+    try {
+        await fetch(`/cultivos/${id}`, {
+            method: "DELETE"
+        });
+        cargarCultivos(); // Recarga la interfaz sin reiniciar toda la página web
+    } catch (error) {
+        console.error("Error al borrar cultivo:", error);
+    }
+}
+
+// ✅ BORRAR ETAPA 
+async function borrarEtapa(id) {
+    if (!confirm("¿Seguro que quieres borrar esta etapa?")) return;
+
+    try {
+        await fetch(`/etapas/${id}`, {
+            method: "DELETE"
+        });
+        cargarEtapas();
+    } catch (error) {
+        console.error("Error al borrar etapa:", error);
+    }
+}
+
+// CREAR CULTIVOS
+
+
+async function crearCultivo() {
+    const nombre = document.getElementById("nombreCultivo").value;
+    const sensor = document.getElementById("sensorCultivo").value;
+
+    if (!nombre || !sensor) {
+        alert("Completa los campos");
+        return;
+    }
+
+    const cultivo = {
+        nombre: nombre,
+        sensorId: sensor
+    };
+
+    await fetch("/cultivos", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(cultivo)
+    });
+
+    // limpiar inputs
+    document.getElementById("nombreCultivo").value = "";
+    document.getElementById("sensorCultivo").value = "";
+
+    // refrescar lista
+    cargarCultivos();
+}
+
+
+// ✅ arranque inicial
+cargarCultivos();
+
+</script>
+
+</body>
+</html>
