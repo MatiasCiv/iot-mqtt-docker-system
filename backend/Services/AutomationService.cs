@@ -1,14 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
+using MQTTnet;
+using MQTTnet.Client;
+using System.Text;
+
 
 public class AutomationService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IMqttClient _mqttClient;
 
-    public AutomationService(IServiceScopeFactory scopeFactory)
+    private static Dictionary<int, string> estadoReles = new();
+
+    public AutomationService(IServiceScopeFactory scopeFactory, IMqttClient mqttClient)
     {
         _scopeFactory = scopeFactory;
+        _mqttClient = mqttClient;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,7 +35,7 @@ public class AutomationService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var cultivos = await db.Cultivos.ToListAsync();
-
+    
         foreach (var cultivo in cultivos)
         {
             Console.WriteLine($"🌱 Procesando cultivo: {cultivo.Nombre}");
@@ -53,8 +61,8 @@ public class AutomationService : BackgroundService
             var dias = (DateTime.UtcNow - cultivo.FechaInicio).Days;
 
             int acumulado = 0;
-            Etapa etapaActual = null;
-
+            Etapa? etapaActual = null;
+    
             foreach (var e in etapas)
             {
                 acumulado += e.DuracionDias;
@@ -69,16 +77,66 @@ public class AutomationService : BackgroundService
             // validar condiciones
             Console.WriteLine($"📊 Humedad actual: {lecturas.Humedad}");
             Console.WriteLine($"📉 Min etapa: {etapaActual?.HumedadMin}");
-            if (etapaActual != null)
+            if (etapaActual is not null)
             {
-                if (lecturas.Humedad < etapaActual.HumedadMin)
-                {
-                    Console.WriteLine("💧 Riego necesario");
+                
+                var humedad = lecturas.Humedad;
+                
+                string estadoActual = estadoReles.ContainsKey(cultivo.Id)
+                    ? estadoReles[cultivo.Id]
+                    : "OFF";
 
-                    // 👉 aquí enviarás MQTT
+                // 🔴 ENCENDER (riego)
+                if (humedad < etapaActual.HumedadMin && estadoActual != "ON")
+                {
+                    Console.WriteLine($"💧 ENCENDER riego → Relay {cultivo.Relay}");
+
+                    await EnviarComandoRelay(cultivo.SensorId, cultivo.Relay, "ON");
+
+                    estadoReles[cultivo.Id] = "ON";
                 }
+
+                // 🔵 APAGAR (suficiente humedad)
+                else if (humedad > etapaActual.HumedadMax && estadoActual != "OFF")
+                {
+                    Console.WriteLine($"✅ APAGAR riego → Relay {cultivo.Relay}");
+
+                    await EnviarComandoRelay(cultivo.SensorId, cultivo.Relay, "OFF");
+
+                    estadoReles[cultivo.Id] = "OFF";
+                }
+
+                // 🟢 zona estable → no hacer nada
+                else
+                {
+                    Console.WriteLine("🟢 Humedad en rango → sin cambios");
+                }
+
             }
 
         }
     }
+
+
+    private async Task EnviarComandoRelay(string deviceId, int relay, string action)
+    {
+        var comando = new
+        {
+            deviceId = deviceId,
+            relay = relay,
+            action = action
+        };
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(comando);
+
+        Console.WriteLine("📡 MQTT → " + payload);
+
+        var message = new MqttApplicationMessageBuilder()
+            .WithTopic("ble/commands")
+            .WithPayload(payload)
+            .Build();
+
+        await _mqttClient.PublishAsync(message);
+    }
+
 }

@@ -8,6 +8,8 @@ public class Cultivo
 
     public string SensorId { get; set; } = "";
 
+    public int Relay { get; set; }
+
     public DateTime FechaInicio { get; set; } = DateTime.UtcNow;
 
     public bool Activo { get; set; } = true;

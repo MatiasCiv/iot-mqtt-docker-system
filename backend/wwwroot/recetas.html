@@ -69,8 +69,9 @@
 <h2>➕ Crear nuevo cultivo</h2>
 
 <input id="nombreCultivo" placeholder="Nombre cultivo">
-<input id="sensorCultivo" placeholder="Sensor (ESP32_001)"><br>
-
+<input id="sensorCultivo" placeholder="Sensor (ESP32_001)">
+<input id="relayCultivo" placeholder="Relay (ej: 1)">
+<br>
 <button onclick="crearCultivo()">Guardar cultivo</button>
 
 
@@ -89,6 +90,10 @@
     <!-- SELECT CULTIVOS -->
     <label for="cultivos">Selecciona un cultivo para ver sus etapas:</label>
     <select id="cultivos" onchange="cargarEtapas()"></select>
+    <button onclick="iniciarCultivo()" style="background:#3b82f6;">
+    🔁 Reiniciar cultivo
+    </button>
+
 </div>
 
 <div id="listaEtapas"></div>
@@ -134,6 +139,8 @@ async function cargarCultivos() {
             cont.innerHTML += `
                 <div class="bloque">
                     🌱 <b>${c.nombre}</b> (${c.sensorId}) <br>
+                    🔌 Relay: ${c.relay}<br>
+                    📅 Inicio: ${new Date(c.fechaInicio).toLocaleDateString()}<br>
                     <button class="btn-borrar" onclick="borrarCultivo(${c.id})">❌ Borrar Cultivo</button>
                 </div>
             `;
@@ -310,6 +317,15 @@ async function borrarEtapa(id) {
 async function crearCultivo() {
     const nombre = document.getElementById("nombreCultivo").value;
     const sensor = document.getElementById("sensorCultivo").value;
+    const relay = document.getElementById("relayCultivo").value;
+
+    
+    // ✅ VALIDACIONES
+    if (!nombre || !sensor || !relay) {
+        alert("Completa todos los campos");
+        return;
+    }
+
 
     if (!nombre || !sensor) {
         alert("Completa los campos");
@@ -318,7 +334,8 @@ async function crearCultivo() {
 
     const cultivo = {
         nombre: nombre,
-        sensorId: sensor
+        sensorId: sensor,
+        relay: parseInt(relay)
     };
 
     await fetch("/cultivos", {
@@ -332,11 +349,34 @@ async function crearCultivo() {
     // limpiar inputs
     document.getElementById("nombreCultivo").value = "";
     document.getElementById("sensorCultivo").value = "";
+    document.getElementById("relayCultivo").value = "";
 
     // refrescar lista
     cargarCultivos();
 }
 
+
+// INICIAR CULTIVO
+async function iniciarCultivo() {
+
+    const cultivoId = document.getElementById("cultivos").value;
+
+    if (!cultivoId) {
+        alert("Selecciona un cultivo");
+        return;
+    }
+
+    if (!confirm("¿Reiniciar el cultivo desde hoy?")) return;
+
+    await fetch(`/cultivos/${cultivoId}/iniciar`, {
+        method: "POST"
+    });
+
+    alert("Cultivo iniciado");
+
+    // refrescar datos
+    cargarCultivos();
+}
 
 // ✅ arranque inicial
 cargarCultivos();

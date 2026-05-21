@@ -10,6 +10,31 @@ using WebApplication1.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ MQTT setup
+
+var factory = new MqttFactory();
+var mqttClient = factory.CreateMqttClient();
+
+var options = new MqttClientOptionsBuilder()
+    .WithClientId("backend-client")
+    .WithTcpServer("mqtt", 1883)
+    .Build();
+
+// 🔥 conectar
+await mqttClient.ConnectAsync(options);
+
+Console.WriteLine("✅ Conectado a MQTT");
+
+// 🔥 SUSCRIPCIONES
+await mqttClient.SubscribeAsync("ble/readings");
+await mqttClient.SubscribeAsync("ble/status");  // 👈 añadir esto
+
+Console.WriteLine("✅ Suscrito a ble/readings y ble/status");
+
+// 🔥 registrar en DI
+builder.Services.AddSingleton<IMqttClient>(mqttClient);
+
+
 builder.Services.AddHostedService<AutomationService>();
 
 // ✅ Configurar SQLite
@@ -27,23 +52,8 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
 }
 
-// ✅ MQTT setup
-var factory = new MqttFactory();
-var mqttClient = factory.CreateMqttClient();
 
-var options = new MqttClientOptionsBuilder()
-    .WithTcpServer("mqtt", 1883)
-    .Build();
 
-// ✅ Suscripción al conectar
-mqttClient.ConnectedAsync += async e =>
-{
-    Console.WriteLine("✅ Conectado a MQTT");
-
-    await mqttClient.SubscribeAsync("ble/readings");
-
-    Console.WriteLine("✅ Suscrito a ble/readings");
-};
 
 // ✅ Recibir y guardar
 mqttClient.ApplicationMessageReceivedAsync += async e =>
@@ -55,20 +65,29 @@ mqttClient.ApplicationMessageReceivedAsync += async e =>
 
     try
     {
-        var data = JsonSerializer.Deserialize<Reading>(payload);
-
-        if (data != null)
+ 
+        if (payload.Contains("temperatura") && payload.Contains("humedad"))
         {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var data = JsonSerializer.Deserialize<Reading>(payload);
 
-            data.Timestamp = DateTime.UtcNow;
+            if (data != null)
+            {
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            db.Readings.Add(data);
-            await db.SaveChangesAsync();
+                data.Timestamp = DateTime.UtcNow;
 
-            Console.WriteLine("💾 Guardado en DB");
+                db.Readings.Add(data);
+                await db.SaveChangesAsync();
+
+                Console.WriteLine("💾 Guardado en DB");
+            }
         }
+        else
+        {
+            Console.WriteLine("⚙️ Mensaje ignorado (no es sensor): " + payload);
+        }
+
     }
     catch (Exception ex)
     {
@@ -76,8 +95,7 @@ mqttClient.ApplicationMessageReceivedAsync += async e =>
     }
 };
 
-// ✅ Conectar
-await mqttClient.ConnectAsync(options);
+
 
 
 
@@ -109,6 +127,21 @@ app.MapGet("/readings/{deviceId}", async (string deviceId, AppDbContext db) =>
 app.MapPost("/cultivos", async (Cultivo cultivo, AppDbContext db) =>
 {
     db.Cultivos.Add(cultivo);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(cultivo);
+});
+
+// INICIALIZAR CULTIVOS
+app.MapPost("/cultivos/{id}/iniciar", async (int id, AppDbContext db) =>
+{
+    var cultivo = await db.Cultivos.FindAsync(id);
+
+    if (cultivo == null)
+        return Results.NotFound();
+
+    cultivo.FechaInicio = DateTime.UtcNow;
+
     await db.SaveChangesAsync();
 
     return Results.Ok(cultivo);
@@ -171,6 +204,9 @@ app.MapDelete("/etapas/{id}", async (int id, AppDbContext db) =>
 
     return Results.Ok();
 });
+
+
+
 
 // CALCULAR DIAS ETAPA
 app.MapGet("/cultivos/{id}/etapa-actual", async (int id, AppDbContext db) =>

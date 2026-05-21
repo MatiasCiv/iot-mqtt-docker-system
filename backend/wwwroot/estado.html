@@ -169,7 +169,8 @@ async function cargarEstado() {
             // 🛠️ CORRECCIÓN: Se cambiaron las referencias huérfanas 'etapa' y 'ultima' por propiedades de 'cultivo'.
             div.innerHTML = `
                 🌱 <b>${cultivo.nombre}</b><br>
-                📡 ${cultivo.sensorId}<br><br>
+                📡 ${cultivo.sensorId}<br>
+                🔌 Relay: ${cultivo.relay}<br><br>
 
                 
                 📍 Etapa: <b>${etapa.etapaActual}</b>

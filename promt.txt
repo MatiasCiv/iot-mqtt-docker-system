@@ -1,220 +1,369 @@
-Estoy desarrollando un sistema IoT modular para monitorización y control de cultivos, basado en arquitectura de microservicios y comunicación mediante MQTT, desplegado con Docker Compose.
+Estoy desarrollando un sistema IoT completo para monitorización y automatización de cultivos, basado en arquitectura distribuida con microservicios y comunicación mediante MQTT, desplegado con Docker Compose.
 
-✅ Estado actual del sistema:
+El sistema actualmente está en una fase avanzada donde ya incluye:
 
-El sistema está completamente operativo en entorno local (Windows + Docker) y consta de tres servicios principales:
-
----
-
-🏗️ Arquitectura general
-
-El sistema sigue una arquitectura desacoplada basada en eventos:
-
-[Python BLE Service] → (MQTT) → [Backend .NET] → (SQLite)
-
-Y ahora incluye interfaz web básica:
-
-[Navegador] → (HTTP API .NET) → (SQLite)
+- adquisición de datos en tiempo real
+- persistencia
+- lógica de negocio
+- visualización avanzada
+- automatización cíclica en backend
+- preparación para control físico de actuadores (válvulas vía Bluetooth + Arduino)
 
 ---
 
-🔧 Servicios implementados
+🏗️ ARQUITECTURA GENERAL
 
-1. ✅ Servicio de ingesta (Python - ble-service)
+Sistema desacoplado basado en eventos:
+
+[UI Web]
+    ↓ HTTP
+[Backend .NET (ASP.NET Core)]
+    ↓ MQTT publish/subscribe
+[Python BLE Service]
+    ↓ Bluetooth (HC-05)
+[Arduino]
+    ↓
+Actuadores físicos (relés / válvulas / bomba)
+
+Y en paralelo:
+
+[Python BLE Service] → MQTT → [.NET] → SQLite
+
+---
+
+🔧 COMPONENTES DEL SISTEMA
+
+---
+
+1. ✅ BLE SERVICE (Python)
 
 - Lenguaje: Python 3.11
-- Contenedor Docker: ble-service
-- Librerías: paho-mqtt
 - Función:
-  - Simulación de datos de sensores (temperatura y humedad)
-  - Publicación cada 5 segundos
-- Topic MQTT:
-  "ble/readings"
+    - Simulación de sensores (temperatura y humedad)
+    - Publicación periódica (~5s)
+    - Puente MQTT ↔ Bluetooth
 
-Ejemplo de mensaje:
-{
-  "deviceId": "ESP32_SIM",
-  "temperatura": 22.3,
-  "humedad": 45.1
-}
+Publica en:
+- Topic: "ble/readings"
+
+Recibe:
+- Topic: "ble/commands"
+
+Responsabilidades:
+- enviar datos a .NET
+- recibir comandos y transmitirlos al Arduino
 
 ---
 
-2. ✅ Broker MQTT (Mosquitto)
+2. ✅ MQTT BROKER (Mosquitto)
 
-- Contenedor: mqtt
-- Puerto expuesto: 1883
-- Función:
-  - Canal central de comunicación desacoplada
-- Flujo:
-  Python → publish
-  Backend → subscribe
+- Puerto: 1883
+- Comunicación desacoplada
+
+Topics principales:
+- ble/readings (sensores)
+- ble/commands (actuadores)
+- ble/status (estado Arduino, futuro)
 
 ---
 
-3. ✅ Backend (.NET 8 - Web API)
+3. ✅ BACKEND (.NET 8)
 
-- Framework: ASP.NET Core (Minimal API)
-- Librería MQTT: MQTTnet
+- Framework: ASP.NET Core Minimal API
 - ORM: Entity Framework Core (SQLite)
+- MQTTnet para comunicación
 
 Funciones:
 
-✅ Recepción de datos MQTT
-✅ Deserialización JSON → modelo Reading
-✅ Persistencia en base de datos SQLite
-✅ Exposición de API REST
+✅ Recepción de datos MQTT en tiempo real  
+✅ Persistencia en SQLite  
+✅ API REST completa  
+✅ Lógica de cultivo (etapas)  
+✅ Motor automático en segundo plano (BackgroundService)  
+✅ Preparación para control de actuadores  
 
 ---
 
-📦 Base de datos
+📦 BASE DE DATOS (SQLite)
 
-- Motor: SQLite
-- Archivo: readings.db
-- Ubicación: volumen Docker en carpeta local `/data`
+Ubicación:
+- ./data/readings.db
 
-Modelo:
-
-Reading:
-- Id (int)
-- DeviceId (string)
-- Temperatura (double)
-- Humedad (double)
-- Timestamp (DateTime)
-
-Configuración clave:
-
-Data Source=data/readings.db
-
-Modo WAL activado:
-PRAGMA journal_mode=WAL;
+Tablas:
 
 ---
 
-🔁 Flujo de datos completo
+📊 Readings
 
-1. Python genera datos simulados
-2. Publica en MQTT (ble/readings)
-3. Backend recibe evento MQTT
-4. Deserializa JSON → objeto Reading
-5. Guarda en SQLite con SaveChangesAsync()
-6. API REST permite consultar datos
-
----
-
-🌐 API REST disponible
-
-GET /readings
-→ devuelve últimas 50 lecturas
-
-GET /readings/{deviceId}
-→ filtra por dispositivo
-
-Ejemplo:
-http://localhost:5000/readings
+- Id
+- DeviceId
+- Temperatura
+- Humedad
+- Timestamp (UTC)
 
 ---
 
-🐳 Docker / Orquestación
+🌱 Cultivos
 
-Se utiliza docker-compose con tres servicios:
-
-- mqtt
-- ble-service
-- backend
-
-Red interna Docker:
-- backend conecta a mqtt por hostname "mqtt"
-
-Volumen persistente:
-- ./data:/app/data
-
-Puerto expuesto:
-- backend → 5000
+- Id
+- Nombre
+- SensorId
+- Relay ✅ (nuevo → número de relé físico)
+- FechaInicio
+- Activo
 
 ---
 
-🖥️ Interfaz web (UI básica)
+🌿 Etapas
 
-Se sirve desde el backend (.NET) usando archivos estáticos:
+- Id
+- CultivoId
+- Nombre
+- DuracionDias
+- HumedadMin / HumedadMax
+- TemperaturaMin / TemperaturaMax
+- RiegoActivo
 
-wwwroot/index.html
+---
 
-Características actuales:
+🧠 MODELO DE NEGOCIO
 
-✅ Interfaz limpia
-✅ Fondo oscuro profesional
-✅ Título: "🌱 Sistema de Cultivo"
-✅ Reloj en tiempo real (JS)
-✅ Botones de navegación:
+Relación principal:
 
-- Recetas        → /recetas (pendiente)
-- Estado Sensores → /estado (pendiente)
-- Control Manual  → /control (pendiente)
+Cultivo
+ ├── sensor (DeviceId)
+ ├── relay (actuador físico)
+ └── etapas
+
+---
+
+🧠 CÁLCULO DE ETAPA ACTUAL
+
+dinámico:
+
+dias = DateTime.UtcNow - FechaInicio
+
+Recorrido acumulativo de etapas → determina etapa actual
+
+---
+
+🔁 AUTOMATIZACIÓN (BackgroundService)
+
+Servicio que corre cada X segundos:
+
+Flujo:
+
+1. Obtener cultivos
+2. Obtener última lectura por sensor
+3. Obtener etapas
+4. Calcular etapa actual
+5. Evaluar condiciones:
+
+if (humedad < etapa.HumedadMin)
+    → activar válvula (pendiente MQTT)
+
+---
+
+💧 EJEMPLO DE LÓGICA
+
+if lectura.Humedad < etapa.HumedadMin:
+    Console.WriteLine("💧 Riego necesario")
+    → (futuro) enviar comando MQTT
+
+---
+
+🌐 API REST
+
+Sensores:
+- GET /readings
+- GET /readings/{deviceId}
+
+Cultivos:
+- GET /cultivos
+- POST /cultivos
+- DELETE /cultivos/{id}
+- POST /cultivos/{id}/iniciar
+
+Etapas:
+- GET /etapas/{cultivoId}
+- POST /etapas
+- DELETE /etapas/{id}
+
+Lógica:
+- GET /cultivos/{id}/etapa-actual
+
+Actuadores:
+- POST /actuador ✅
+
+---
+
+🖥️ UI WEB
 
 Tecnología:
-- HTML + CSS + JS puro (sin framework)
+- HTML + CSS + JS puro
 
 ---
 
-⚠️ Problemas ya resueltos
+📋 RECETAS (recetas.html)
 
-✔ Problemas de encoding UTF-8
-✔ HTML roto (botones incorrectos)
-✔ JS ejecutándose como texto
-✔ Docker networking
-✔ Persistencia DB con volúmenes
-✔ Conflictos SQLite (WAL + cierre clientes)
-✔ Deserialización JSON (JsonPropertyName)
+Funciones:
 
----
-
-🚀 Próximos pasos planificados
-
-1. UI dinámica (prioridad actual)
-   - Pantalla "Estado Sensores"
-   - Fetch a /readings
-   - Mostrar datos en tiempo real
-
-2. Sistema de recetas
-   - Nueva DB o tabla
-   - Configuración de cultivo
-
-3. Control bidireccional
-   - .NET → MQTT
-   - Python → Arduino BLE
-   - Control de relés
-
-4. Migración a entorno real
-   - Raspberry Pi
-   - BLE real con bleak
-
-5. Visualización avanzada
-   - Grafana dashboards
+✅ Crear cultivos
+    - nombre
+    - sensor
+    - relay
+✅ Crear etapas
+✅ Validaciones completas
+✅ Borrar cultivos
+✅ Borrar etapas
+✅ Inicializar cultivo (FechaInicio = ahora)
 
 ---
 
-🎯 Objetivo final
+📊 ESTADO (estado.html)
+
+Muestra TODOS los cultivos:
+
+Por cultivo:
+
+✅ Nombre  
+✅ Sensor  
+✅ Relay  
+✅ Etapa actual  
+✅ Días transcurridos  
+✅ Última lectura  
+✅ Timestamp en hora local  
+✅ Estado visual dinámico  
+
+---
+
+🧠 SISTEMA DE ESTADOS
+
+1. ⚫ SIN DATOS
+2. ⚫ DATOS ANTIGUOS (>10 min)
+3. 🔴 ERROR (fuera de rango)
+4. 🟡 WARNING (cerca límite)
+5. 🟢 OK
+
+---
+
+🎨 VISUALIZACIÓN
+
+- tarjetas por cultivo
+- color de borde dinámico
+- actualización automática
+
+---
+
+🧠 GESTIÓN DE TIEMPO
+
+- Backend: UTC
+- Frontend: conversión con "Z"
+
+new Date(timestamp + "Z")
+
+Permite:
+
+✅ correcta visualización  
+✅ cálculo preciso de “datos antiguos”
+
+---
+
+📡 CONTROL DE ACTUADORES (IMPLEMENTADO PARCIALMENTE)
+
+Flujo definido:
+
+UI → POST /actuador → MQTT → Python → Bluetooth → Arduino
+
+Formato:
+
+{
+  "deviceId": "...",
+  "relay": 1,
+  "action": "ON"
+}
+
+Arduino:
+
+- recibe comando
+- activa relé
+- devuelve estado
+
+---
+
+🔌 HARDWARE PREVISTO
+
+Arduino + HC-05:
+
+Funciones:
+- control de relés (válvulas)
+- comunicación serie BLE
+- retorno de estado
+
+---
+
+🚀 ESTADO ACTUAL
+
+Sistema capaz de:
+
+✅ leer sensores  
+✅ almacenar histórico  
+✅ modelar cultivos reales  
+✅ calcular etapa actual  
+✅ visualizar estado completo  
+✅ evaluar condiciones automáticamente  
+✅ identificar necesidad de riego  
+✅ asignar relé físico a cada cultivo  
+✅ preparado para enviar acciones reales  
+
+---
+
+🔮 ARQUITECTURA FUTURA PREAPROBADA
+
+Expansión prevista:
+
+---
+
+💧 Sistema de pozo
+
+Dispositivo:
+- sensores nivel agua
+- bomba (relay)
+
+---
+
+🎛️ Nueva capa futura:
+
+Dispositivo
+ ├── sensores
+ └── actuadores
+
+---
+
+🎯 OBJETIVO FINAL
 
 Sistema IoT autónomo capaz de:
 
-- Leer sensores vía BLE
-- Procesar datos en backend
-- Guardar histórico
-- Visualizar en tiempo real
-- Aplicar reglas de cultivo
-- Controlar actuadores físicos
+- monitorizar en tiempo real
+- detectar estados críticos
+- tomar decisiones
+- ejecutar acciones físicas
+- operar en modo automático o manual
+- escalar a múltiples dispositivos
 
 ---
 
-🧠 Conceptos clave implementados
+🧠 PRINCIPIOS APLICADOS
 
-- Arquitectura "event-driven"
-- MQTT pub/sub
-- Microservicios desacoplados
-- Persistencia con ORM (EF Core)
-- API REST
-- Contenerización (Docker)
-- UI básica integrada
+- event-driven architecture
+- separación de capas
+- backend desacoplado
+- UI reactiva
+- persistencia consistente
+- uso de UTC
+- automatización en segundo plano
+- preparación para hardware real
 
-El sistema está ahora en fase de desarrollo frontend (UI dinámica) tras haber completado backend y persistencia.
+---
+
+El sistema se encuentra en fase de transición de simulación a control físico real, siendo el siguiente paso implementar envío de comandos MQTT para activación de relés en Arduino.
