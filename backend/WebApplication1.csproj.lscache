@@ -58,6 +58,7 @@ Models/
  Cultivo.cs
  Etapa.cs
  Reading.cs
+ RelayStatus.cs
 obj/Debug/net8.0/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
  WebApplication1.AssemblyInfo.cs

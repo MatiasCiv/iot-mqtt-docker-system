@@ -61,20 +61,30 @@
 
 <h1>📊 Estado del Sistema</h1>
 
-<div id="infoCultivo" class="bloque"></div>
-<div id="infoEtapa" class="bloque"></div>
-<div id="infoSensor" class="bloque"></div>
+<div id="contenedor-cultivos"></div>
 
 <script>
 
+
+
+
+
 async function cargarEstado() {
 
-    const cont = document.body;
+    let estadoReles = [];
+
+    const resReles = await fetch("/relay-status");
+    estadoReles = await resReles.json();
+
+
+
+    const cont = document.getElementById("contenedor-cultivos");
 
     // limpiar (mantener título)
-    document.querySelectorAll(".bloque").forEach(e => e.remove());
+    cont.innerHTML = "";
 
     const cultivos = await fetch("/cultivos").then(r => r.json());
+    
 
     if (cultivos.length === 0) {
         cont.innerHTML += "<p>No hay cultivos</p>";
@@ -163,14 +173,23 @@ async function cargarEstado() {
 
 
             // ✅ crear tarjeta
+            
+            const estadoRelay = estadoReles.find(r => r.relay === cultivo.relay);
+            const estadoTexto = estadoRelay ? estadoRelay.status : "UNKNOWN";
+            const colorRelay = estadoTexto === "ON" ? "lightgreen" : "salmon";
             const div = document.createElement("div");
+
             div.className = `bloque ${clase}`;
 
             // 🛠️ CORRECCIÓN: Se cambiaron las referencias huérfanas 'etapa' y 'ultima' por propiedades de 'cultivo'.
             div.innerHTML = `
                 🌱 <b>${cultivo.nombre}</b><br>
                 📡 ${cultivo.sensorId}<br>
-                🔌 Relay: ${cultivo.relay}<br><br>
+                🔌 Relay ${cultivo.relay}:
+                <strong style="color:${colorRelay}">
+                    ${estadoTexto}
+                </strong><br><br>
+
 
                 
                 📍 Etapa: <b>${etapa.etapaActual}</b>

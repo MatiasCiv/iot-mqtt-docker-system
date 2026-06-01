@@ -83,10 +83,25 @@ mqttClient.ApplicationMessageReceivedAsync += async e =>
                 Console.WriteLine("💾 Guardado en DB");
             }
         }
-        else
+       
+        else if (payload.Contains("relay") && payload.Contains("status"))
         {
-            Console.WriteLine("⚙️ Mensaje ignorado (no es sensor): " + payload);
+            var estado = JsonSerializer.Deserialize<RelayStatus>(payload);
+
+            if (estado != null)
+            {
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                estado.Timestamp = DateTime.UtcNow;
+
+                db.RelayStatuses.Add(estado);
+                await db.SaveChangesAsync();
+
+                Console.WriteLine("🔌 Estado relé guardado");
+            }
         }
+
 
     }
     catch (Exception ex)
@@ -176,6 +191,19 @@ app.MapGet("/etapas/{cultivoId}", async (int cultivoId, AppDbContext db) =>
 
     return Results.Ok(lista);
 });
+
+//OBTENER ESTADO DE RELES
+
+app.MapGet("/relay-status", async (AppDbContext db) =>
+{
+    var estado = await db.RelayStatuses
+        .GroupBy(r => r.Relay)
+        .Select(g => g.OrderByDescending(x => x.Timestamp).First())
+        .ToListAsync();
+
+    return Results.Ok(estado);
+});
+
 
 //ELIMINAR CULTIVOS
 

@@ -11,7 +11,7 @@ public class AutomationService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMqttClient _mqttClient;
 
-    private static Dictionary<int, string> estadoReles = new();
+   
 
     public AutomationService(IServiceScopeFactory scopeFactory, IMqttClient mqttClient)
     {
@@ -82,9 +82,12 @@ public class AutomationService : BackgroundService
                 
                 var humedad = lecturas.Humedad;
                 
-                string estadoActual = estadoReles.ContainsKey(cultivo.Id)
-                    ? estadoReles[cultivo.Id]
-                    : "OFF";
+                var estadoReal = await db.RelayStatuses
+                    .Where(r => r.Relay == cultivo.Relay)
+                    .OrderByDescending(r => r.Timestamp)
+                    .FirstOrDefaultAsync();
+
+                string estadoActual = estadoReal?.Status ?? "UNKNOWN";
 
                 // 🔴 ENCENDER (riego)
                 if (humedad < etapaActual.HumedadMin && estadoActual != "ON")
@@ -93,7 +96,7 @@ public class AutomationService : BackgroundService
 
                     await EnviarComandoRelay(cultivo.SensorId, cultivo.Relay, "ON");
 
-                    estadoReles[cultivo.Id] = "ON";
+                    
                 }
 
                 // 🔵 APAGAR (suficiente humedad)
@@ -103,7 +106,7 @@ public class AutomationService : BackgroundService
 
                     await EnviarComandoRelay(cultivo.SensorId, cultivo.Relay, "OFF");
 
-                    estadoReles[cultivo.Id] = "OFF";
+                    
                 }
 
                 // 🟢 zona estable → no hacer nada
