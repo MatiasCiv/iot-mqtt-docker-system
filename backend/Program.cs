@@ -275,17 +275,14 @@ app.MapGet("/cultivos/{id}/etapa-actual", async (int id, AppDbContext db) =>
 });
 
 //GESTION AUTO MANUAL
-app.MapPost("/modo", async (dynamic data, AppDbContext db) =>
+app.MapPost("/modo", async (ModoRequest data, AppDbContext db) =>
 {
-    int cultivoId = data.cultivoId;
-    string modo = data.modo;
-
-    var cultivo = await db.Cultivos.FindAsync(cultivoId);
+    var cultivo = await db.Cultivos.FindAsync(data.CultivoId);
 
     if (cultivo == null)
         return Results.NotFound();
 
-    cultivo.Modo = modo;
+    cultivo.Modo = data.Modo;
     await db.SaveChangesAsync();
 
     return Results.Ok(new { mensaje = "Modo actualizado" });
