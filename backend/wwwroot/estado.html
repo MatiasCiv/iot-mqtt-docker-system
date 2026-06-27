@@ -186,10 +186,11 @@ async function cargarEstado() {
             div.innerHTML = `
                 🌱 <b>${cultivo.nombre}</b><br>
                 📡 ${cultivo.sensorId}<br>
-                🔌 Relay ${cultivo.relay}:
-                <strong style="color:${colorRelay}">
-                    ${estadoTexto}
-                </strong><br><br>
+                🔌 Relay ${cultivo.relay}:<br>
+                <strong style="color:${colorRelay}; font-size:18px;">
+                    ${icono}
+                </strong>
+                <br><br>
 
                 ⚙️ Modo: <b>${cultivo.modo}</b><br>
                 <button onclick="setModo(${cultivo.id}, 'AUTO')">AUTO</button>
@@ -254,7 +255,7 @@ async function setModo(cultivoId, modo) {
         body: JSON.stringify({ cultivoId, modo })
     });
 
-    cargarEstado(); // refresca
+    cargarEstado(); 
 }
 
 //CONTROL RELE
@@ -265,10 +266,15 @@ async function controlRelay(relay, action) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ relay, action })
     });
+    
+    setTimeout(cargarEstado, 1000);  // 🔥 actualizar después de 1s
 }
+        method: "POST",
+
+
 
 // refresco automático
-setInterval(cargarEstado, 3000);
+setInterval(cargarEstado, 60000);
 cargarEstado();
 
 </script>
