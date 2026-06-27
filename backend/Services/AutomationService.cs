@@ -39,6 +39,11 @@ public class AutomationService : BackgroundService
         foreach (var cultivo in cultivos)
         {
             Console.WriteLine($"🌱 Procesando cultivo: {cultivo.Nombre}");
+            
+        if (cultivo.Modo == "MANUAL")
+        {
+            Console.WriteLine($"🟡 Cultivo {cultivo.Nombre} en MAN");
+
 
             // Aquí irá la lógica real 👇
             

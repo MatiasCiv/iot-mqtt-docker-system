@@ -15,4 +15,6 @@ public class Cultivo
     public bool Activo { get; set; } = true;
 
     public List<Etapa> Etapas { get; set; } = new();
+
+    public string Modo { get; set; } = "AUTO";
 }

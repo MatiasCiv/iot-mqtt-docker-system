@@ -274,6 +274,50 @@ app.MapGet("/cultivos/{id}/etapa-actual", async (int id, AppDbContext db) =>
     });
 });
 
+//GESTION AUTO MANUAL
+app.MapPost("/modo", async (dynamic data, AppDbContext db) =>
+{
+    int cultivoId = data.cultivoId;
+    string modo = data.modo;
+
+    var cultivo = await db.Cultivos.FindAsync(cultivoId);
+
+    if (cultivo == null)
+        return Results.NotFound();
+
+    cultivo.Modo = modo;
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { mensaje = "Modo actualizado" });
+});
+
+//CONTROL DE RELES
+app.MapPost("/relay-control", async (IMqttClient mqttClient, dynamic data) =>
+{
+    int relay = data.relay;
+    string action = data.action;
+
+    var mensaje = new
+    {
+        relay = relay,
+        action = action
+    };
+
+    var payload = JsonSerializer.Serialize(mensaje);
+
+    var mqttMessage = new MqttApplicationMessageBuilder()
+        .WithTopic("ble/commands")
+        .WithPayload(payload)
+        .Build();
+
+    await mqttClient.PublishAsync(mqttMessage);
+
+    Console.WriteLine($"📡 Enviado a Arduino: {payload}");
+
+    return Results.Ok(new { mensaje = "Comando enviado" });
+});
+
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.Run("http://0.0.0.0:5000");

@@ -1,3 +1,9 @@
-git add .
-git commit -m "Descripcion"
-git push
+En PC de desarrollo:
+    git status
+    git add .
+    git commit -m "Descripcion"
+    git push
+
+En Raspberry PI:
+    git pull
+    docker compose up --build -d
