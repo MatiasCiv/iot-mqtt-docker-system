@@ -134,17 +134,45 @@ async function cargarCultivos() {
                     ${c.nombre}
                 </option>
             `;
+            
 
             // ✅ mostrar listado bonito con botón rojo de borrar
             cont.innerHTML += `
                 <div class="bloque">
+                    
                     🌱 <b>${c.nombre}</b> (${c.sensorId}) <br>
                     🔌 Relay: ${c.relay}<br>
                     📅 Inicio: ${new Date(c.fechaInicio).toLocaleDateString()}<br>
+
+                    ⚙️ Modo: <b>${c.modo}</b><br>
+                    <button onclick="setModo(${c.id}, 'AUTO')">AUTO</button>
+                    <button onclick="setModo(${c.id}, 'MANUAL')">MANUAL</button>
+
+                    <div id="manual-${c.id}" style="margin-top:10px;">
+                        🔌 Control manual:<br>
+                        <button onclick="controlRelay(${c.relay}, 'ON')">ON</button>
+                        <button onclick="controlRelay(${c.relay}, 'OFF')">OFF</button>
+                    </div>
+
+                    <br>
                     <button class="btn-borrar" onclick="borrarCultivo(${c.id})">❌ Borrar Cultivo</button>
                 </div>
             `;
+
+
+            setTimeout(() => {
+                const divManual = document.getElementById(`manual-${c.id}`);
+
+                if (c.modo === "MANUAL") {
+                    divManual.style.display = "block";
+                } else {
+                    divManual.style.display = "none";
+                }
+            }, 0);
+        
         });
+        
+
 
         if (data.length > 0) {
             cargarEtapas();
@@ -293,6 +321,26 @@ async function borrarCultivo(id) {
     } catch (error) {
         console.error("Error al borrar cultivo:", error);
     }
+}
+
+// CAMBIAR MODO TRABAJO
+async function setModo(cultivoId, modo) {
+    await fetch("/modo", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ cultivoId, modo })
+    });
+
+    cargarCultivos(); // refresca UI
+}
+
+//CONTROL RELE
+async function controlRelay(relay, action) {
+    await fetch("/relay-control", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ relay, action })
+    });
 }
 
 // ✅ BORRAR ETAPA 
