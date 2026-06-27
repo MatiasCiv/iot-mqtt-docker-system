@@ -100,12 +100,19 @@ print("🚀 MODO MQTT ACTIVO")
 # ----------------------
 
 while True:
-    # ✅ seguir publicando sensores
-    data = generar_dato()
-    payload = json.dumps(data)
 
-    print("📡 Publicando sensor:", payload)
+    try:
+        linea = ser.readline().decode().strip()
 
-    client.publish(TOPIC_READINGS, payload)
+        if linea:
+            print("📥 Arduino dice:", linea)
 
-    time.sleep(5)
+            # Si el mensaje es JSON de sensor
+            if "temperatura" in linea:
+                client.publish(TOPIC_READINGS, linea)
+
+    except Exception as e:
+        print("❌ Error leyendo serial:", e)
+
+    time.sleep(1)
+
