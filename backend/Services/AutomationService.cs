@@ -41,9 +41,10 @@ public class AutomationService : BackgroundService
             Console.WriteLine($"🌱 Procesando cultivo: {cultivo.Nombre}");
             
         if (cultivo.Modo == "MANUAL")
-        {
-            Console.WriteLine($"🟡 Cultivo {cultivo.Nombre} en MAN");
-
+            {
+                Console.WriteLine($"🟡 Cultivo {cultivo.Nombre} en MANUAL → no automatizar");
+                continue;   // 🔥 CLAVE
+            }
 
             // Aquí irá la lógica real 👇
             
