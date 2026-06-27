@@ -22,6 +22,29 @@ print("✅ Conectado a /dev/rfcomm0")
 
 
 
+
+import threading
+
+def leer_serial():
+    while True:
+        try:
+            if ser.in_waiting > 0:
+                respuesta = ser.readline().decode(errors="ignore").strip()
+
+                if respuesta:
+                    print("📥 Respuesta Arduino:", respuesta)
+
+                    
+                    if client.is_connected():
+                        client.publish(TOPIC_STATUS, respuesta)
+
+
+        except Exception as e:
+            print("⚠️ Error en lectura serial:", e)
+
+        time.sleep(0.05)
+
+
 # ----------------------
 # ✅ SIMULACIÓN SENSOR
 # ----------------------
@@ -38,11 +61,14 @@ def generar_dato():
 # ✅ GESTION BLUETOOTH
 # ----------------------
 
-def enviar_bluetooth(mensaje):
-    
-    print("📡 [BLE] Enviando a Arduino:", mensaje)
 
-    ser.write((mensaje + "\n").encode())
+def enviar_bluetooth(mensaje):
+    try:
+        print("📡 [BLE] Enviando a Arduino:", mensaje)
+        ser.write((mensaje + "\n").encode())
+        ser.flush()
+    except Exception as e:
+        print("❌ Error enviando por Bluetooth:", e)
 
 
 
@@ -67,23 +93,6 @@ def on_message(client, userdata, msg):
     enviar_bluetooth(payload)
 
 
-    # ✅ esperar respuesta Arduino
-    try:
-        if ser.in_waiting > 0:
-            respuesta = ser.readline().decode().strip()
-            print("📥 Respuesta Arduino:", respuesta)
-
-            # opcional: reenviar a MQTT
-            client.publish("ble/status", respuesta)
-
-    except Exception as e:
-        print("⚠️ Error leyendo serial:", e)
-
-    if respuesta:
-        print("📥 Respuesta Arduino:", respuesta)
-        client.publish(TOPIC_STATUS, respuesta)
-    else:
-        print("⚠️ Sin respuesta del Arduino")
 
 
 
@@ -99,29 +108,13 @@ client.on_message = on_message
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
 
 client.loop_start()
-
+threading.Thread(target=leer_serial, daemon=True).start()
 
 print("🚀 MODO MQTT ACTIVO")
 
 
-# ----------------------
-# ✅ LOOP PRINCIPAL
-# ----------------------
 
 while True:
-
-    try:
-        linea = ser.readline().decode().strip()
-
-        if linea:
-            print("📥 Arduino dice:", linea)
-
-            # Si el mensaje es JSON de sensor
-            if "temperatura" in linea:
-                client.publish(TOPIC_READINGS, linea)
-
-    except Exception as e:
-        print("❌ Error leyendo serial:", e)
-
     time.sleep(1)
+
 
