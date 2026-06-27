@@ -144,17 +144,7 @@ async function cargarCultivos() {
                     🔌 Relay: ${c.relay}<br>
                     📅 Inicio: ${new Date(c.fechaInicio).toLocaleDateString()}<br>
 
-                    ⚙️ Modo: <b>${c.modo}</b><br>
-                    <button onclick="setModo(${c.id}, 'AUTO')">AUTO</button>
-                    <button onclick="setModo(${c.id}, 'MANUAL')">MANUAL</button>
-
-                    <div id="manual-${c.id}" style="margin-top:10px;">
-                        🔌 Control manual:<br>
-                        <button onclick="controlRelay(${c.relay}, 'ON')">ON</button>
-                        <button onclick="controlRelay(${c.relay}, 'OFF')">OFF</button>
-                    </div>
-
-                    <br>
+                
                     <button class="btn-borrar" onclick="borrarCultivo(${c.id})">❌ Borrar Cultivo</button>
                 </div>
             `;
@@ -323,25 +313,7 @@ async function borrarCultivo(id) {
     }
 }
 
-// CAMBIAR MODO TRABAJO
-async function setModo(cultivoId, modo) {
-    await fetch("/modo", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ cultivoId, modo })
-    });
 
-    cargarCultivos(); // refresca UI
-}
-
-//CONTROL RELE
-async function controlRelay(relay, action) {
-    await fetch("/relay-control", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ relay, action })
-    });
-}
 
 // ✅ BORRAR ETAPA 
 async function borrarEtapa(id) {
@@ -402,6 +374,7 @@ async function crearCultivo() {
     // refrescar lista
     cargarCultivos();
 }
+
 
 
 // INICIAR CULTIVO

@@ -190,6 +190,18 @@ async function cargarEstado() {
                     ${estadoTexto}
                 </strong><br><br>
 
+                ⚙️ Modo: <b>${cultivo.modo}</b><br>
+                <button onclick="setModo(${cultivo.id}, 'AUTO')">AUTO</button>
+                <button onclick="setModo(${cultivo.id}, 'MANUAL')">MANUAL</button>
+
+                <div id="manual-${cultivo.id}" style="margin-top:10px;">
+                    🔌 Control manual:<br>
+                    <button onclick="controlRelay(${cultivo.relay}, 'ON')">ON</button>
+                    <button onclick="controlRelay(${cultivo.relay}, 'OFF')">OFF</button>
+                </div>
+
+                <br>
+
 
                 
                 📍 Etapa: <b>${etapa.etapaActual}</b>
@@ -207,11 +219,43 @@ async function cargarEstado() {
 
 
             cont.appendChild(div);
+            
+            setTimeout(() => {
+                const manualDiv = document.getElementById(`manual-${cultivo.id}`);
+                if (cultivo.modo === "MANUAL") {
+                    manualDiv.style.display = "block";
+                } else {
+                    manualDiv.style.display = "none";
+                }
+            }, 0);
+
 
         } catch (error) {
             console.error("Error con cultivo:", cultivo, error);
         }
     }
+}
+
+//CAMBIAR MODO
+
+async function setModo(cultivoId, modo) {
+    await fetch("/modo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cultivoId, modo })
+    });
+
+    cargarEstado(); // refresca
+}
+
+//CONTROL RELE
+
+async function controlRelay(relay, action) {
+    await fetch("/relay-control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ relay, action })
+    });
 }
 
 // refresco automático
