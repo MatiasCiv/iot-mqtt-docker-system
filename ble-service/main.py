@@ -68,7 +68,16 @@ def on_message(client, userdata, msg):
 
 
     # ✅ esperar respuesta Arduino
-    respuesta = ser.readline().decode().strip()
+    try:
+        if ser.in_waiting > 0:
+            respuesta = ser.readline().decode().strip()
+            print("📥 Respuesta Arduino:", respuesta)
+
+            # opcional: reenviar a MQTT
+            client.publish("ble/status", respuesta)
+
+    except Exception as e:
+        print("⚠️ Error leyendo serial:", e)
 
     if respuesta:
         print("📥 Respuesta Arduino:", respuesta)
