@@ -289,10 +289,10 @@ app.MapPost("/modo", async (ModoRequest data, AppDbContext db) =>
 });
 
 //CONTROL DE RELES
-app.MapPost("/relay-control", async (IMqttClient mqttClient, dynamic data) =>
+app.MapPost("/relay-control", async (IMqttClient mqttClient, RelayRequest data) =>
 {
-    int relay = data.relay;
-    string action = data.action;
+    int relay = data.Relay;
+    string action = data.Action;
 
     var mensaje = new
     {
