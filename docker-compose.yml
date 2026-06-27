@@ -10,6 +10,10 @@ services:
     container_name: ble-service
     depends_on:
       - mqtt
+      
+    devices:
+      - "/dev/rfcomm0:/dev/rfcomm0"
+
 
   backend:
     build: ./backend

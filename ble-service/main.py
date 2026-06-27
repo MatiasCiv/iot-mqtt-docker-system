@@ -2,6 +2,7 @@ import time
 import random
 import json
 import paho.mqtt.client as mqtt
+import serial
 
 MQTT_BROKER = "mqtt"
 MQTT_PORT = 1883
@@ -9,6 +10,16 @@ MQTT_PORT = 1883
 TOPIC_READINGS = "ble/readings"
 TOPIC_COMMANDS = "ble/commands"
 TOPIC_STATUS = "ble/status"
+
+
+
+# ----------------------
+# ✅ SERIAL HC-05
+# ----------------------
+
+ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+print("✅ Conectado a /dev/rfcomm0")
+
 
 
 # ----------------------
@@ -24,25 +35,16 @@ def generar_dato():
 
 
 # ----------------------
-# ✅ SIMULACIÓN BLUETOOTH
+# ✅ GESTION BLUETOOTH
 # ----------------------
 
 def enviar_bluetooth(mensaje):
+    
     print("📡 [BLE] Enviando a Arduino:", mensaje)
 
-    # 🔥 aquí irá pyserial real más adelante
-    # ser.write((mensaje + "\n").encode())
+    ser.write((mensaje + "\n").encode())
 
 
-def simular_respuesta(mensaje):
-    data = json.loads(mensaje)
-
-    respuesta = {
-        "relay": data["relay"],
-        "status": data["action"]
-    }
-
-    return json.dumps(respuesta)
 
 
 # ----------------------
@@ -64,13 +66,16 @@ def on_message(client, userdata, msg):
     # ✅ enviar a "Arduino"
     enviar_bluetooth(payload)
 
-    # ✅ simular respuesta Arduino
-    respuesta = simular_respuesta(payload)
 
-    print("📡 [Arduino RESPUESTA]:", respuesta)
+    # ✅ esperar respuesta Arduino
+    respuesta = ser.readline().decode().strip()
 
-    # ✅ publicar estado
-    client.publish(TOPIC_STATUS, respuesta)
+    if respuesta:
+        print("📥 Respuesta Arduino:", respuesta)
+        client.publish(TOPIC_STATUS, respuesta)
+    else:
+        print("⚠️ Sin respuesta del Arduino")
+
 
 
 # ----------------------
