@@ -177,6 +177,7 @@ async function cargarEstado() {
             const estadoRelay = estadoReles.find(r => r.relay === cultivo.relay);
             const estadoTexto = estadoRelay ? estadoRelay.status : "UNKNOWN";
             const colorRelay = estadoTexto === "ON" ? "lightgreen" : "salmon";
+            const icono = estadoTexto === "ON" ? "🟢 ENCENDIDO" : "🔴 APAGADO";
             const div = document.createElement("div");
 
             div.className = `bloque ${clase}`;
@@ -220,14 +221,22 @@ async function cargarEstado() {
 
             cont.appendChild(div);
             
+            
             setTimeout(() => {
                 const manualDiv = document.getElementById(`manual-${cultivo.id}`);
+                const botones = manualDiv.querySelectorAll("button");
+
                 if (cultivo.modo === "MANUAL") {
                     manualDiv.style.display = "block";
+
+                    botones.forEach(b => b.disabled = false);  // ✅ activar
                 } else {
                     manualDiv.style.display = "none";
+
+                    botones.forEach(b => b.disabled = true);   // ✅ desactivar
                 }
             }, 0);
+
 
 
         } catch (error) {
@@ -259,7 +268,7 @@ async function controlRelay(relay, action) {
 }
 
 // refresco automático
-setInterval(cargarEstado, 60000);
+setInterval(cargarEstado, 3000);
 cargarEstado();
 
 </script>
