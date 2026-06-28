@@ -17,12 +17,25 @@ TOPIC_COMMANDS = "ble/commands"
 TOPIC_STATUS = "ble/status"
 
 
+
+print("⏳ esperando sistema estable...")
+time.sleep(5)
+
 # ----------------------
 # ✅ SERIAL HC-05
 # ----------------------
 
-while not os.path.exists("/dev/rfcomm0"):
-    print("⏳ esperando /dev/rfcomm0...")
+while True:
+    if os.path.exists("/dev/rfcomm0"):
+        try:
+            with open("/dev/rfcomm0"):
+                print("✅ rfcomm disponible")
+                break
+        except:
+            print("⏳ rfcomm existe pero no listo...")
+    else:
+        print("⏳ esperando rfcomm...")
+
     time.sleep(2)
 
 while True:
@@ -69,6 +82,7 @@ def leer_serial():
                     print("🔄 reconectando RFComm...")
                     ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
                     print("✅ reconectado")
+                    time.sleep(2) 
                     reintentando = False
                 except Exception as e:
                     print("⏳ esperando reconexión...", e)
