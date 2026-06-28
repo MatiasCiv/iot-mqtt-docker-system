@@ -29,6 +29,7 @@ while True:
     try:
         ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
         print("✅ Conectado a RFComm")
+        time.sleep(2)  
         break
     except Exception as e:
         print("⏳ esperando conexión RFComm...", e)
@@ -43,7 +44,7 @@ def leer_serial():
 
     while True:
         try:
-            if ser.in_waiting > 0:
+            if ser and ser.in_waiting > 0:
                 respuesta = ser.readline().decode(errors="ignore").strip()
 
                 if respuesta:
@@ -73,7 +74,7 @@ def leer_serial():
                     print("⏳ esperando reconexión...", e)
                     time.sleep(3)   # 🔥 MÁS LENTO todavía
 
-        time.sleep(0.2)
+        time.sleep(0.5)
 
 
 # ----------------------
@@ -139,6 +140,8 @@ client.on_message = on_message
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
 
 client.loop_start()
+
+time.sleep(2)
 threading.Thread(target=leer_serial, daemon=True).start()
 
 print("🚀 MODO MQTT ACTIVO")
