@@ -18,144 +18,147 @@ TOPIC_STATUS = "ble/status"
 
 
 
+try:
+
+    # ----------------------
+    # ✅ SERIAL HC-05
+    # ----------------------
 
 
-# ----------------------
-# ✅ SERIAL HC-05
-# ----------------------
-
-
-print("⏳ esperando sistema Bluetooth estable...")
-time.sleep(8)
-
-while True:
-    try:
-        ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
-        ser.write(b"\n")   # test real
-
-        print("✅ RFComm completamente operativo")
-        time.sleep(2)
-        break
-
-    except Exception as e:
-        print("⏳ esperando RFComm real...", e)
-        time.sleep(3)
-
-
-
-import threading
-
-def leer_serial():
-    global ser
+    print("⏳ esperando sistema Bluetooth estable...")
+    time.sleep(8)
 
     while True:
         try:
-            if ser and ser.in_waiting > 0:
-                respuesta = ser.readline().decode(errors="ignore").strip()
-
-                if respuesta:
-                    print("📥 Respuesta Arduino:", respuesta)
-
-                    if client.is_connected():
-                        client.publish(TOPIC_STATUS, respuesta)
-
+            ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+            break
         except Exception as e:
-            print("⚠️ Error serial:", e)
+            print("⏳ esperando RFComm...", e)
+            time.sleep(2)
 
-            # 🔥 RECONEXIÓN AUTOMÁTICA
+
+
+    import threading
+
+    def leer_serial():
+        global ser
+
+        while True:
             try:
-                ser.close()
-            except:
-                pass
+                if ser and ser.in_waiting > 0:
+                    respuesta = ser.readline().decode(errors="ignore").strip()
 
-            reintentando = True
+                    if respuesta:
+                        print("📥 Respuesta Arduino:", respuesta)
 
-            while reintentando:
+                        if client.is_connected():
+                            client.publish(TOPIC_STATUS, respuesta)
+
+            except Exception as e:
+                print("⚠️ Error serial:", e)
+
+                # 🔥 RECONEXIÓN AUTOMÁTICA
                 try:
-                    print("🔄 reconectando RFComm...")
-                    ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
-                    print("✅ reconectado")
-                    time.sleep(2) 
-                    reintentando = False
-                except Exception as e:
-                    print("⏳ esperando reconexión...", e)
-                    time.sleep(3)   # 🔥 MÁS LENTO todavía
+                    ser.close()
+                except:
+                    pass
 
-        time.sleep(0.5)
+                reintentando = True
 
+                while reintentando:
+                    try:
+                        print("🔄 reconectando RFComm...")
+                        ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+                        print("✅ reconectado")
+                        time.sleep(2) 
+                        reintentando = False
+                    except Exception as e:
+                        print("⏳ esperando reconexión...", e)
+                        time.sleep(3)   # 🔥 MÁS LENTO todavía
 
-# ----------------------
-# ✅ SIMULACIÓN SENSOR
-# ----------------------
-
-def generar_dato():
-    return {
-        "deviceId": "ESP32_SIM",
-        "temperatura": round(random.uniform(20, 30), 2),
-        "humedad": round(random.uniform(40, 80), 2)
-    }
+            time.sleep(0.5)
 
 
-# ----------------------
-# ✅ GESTION BLUETOOTH
-# ----------------------
+    # ----------------------
+    # ✅ SIMULACIÓN SENSOR
+    # ----------------------
+
+    def generar_dato():
+        return {
+            "deviceId": "ESP32_SIM",
+            "temperatura": round(random.uniform(20, 30), 2),
+            "humedad": round(random.uniform(40, 80), 2)
+        }
 
 
-def enviar_bluetooth(mensaje):
-    try:
-        print("📡 [BLE] Enviando a Arduino:", mensaje)
-        ser.write((mensaje + "\n").encode())
-        ser.flush()
-    except Exception as e:
-        print("❌ Error enviando por Bluetooth:", e)
+    # ----------------------
+    # ✅ GESTION BLUETOOTH
+    # ----------------------
 
 
-
-
-# ----------------------
-# ✅ MQTT CALLBACKS
-# ----------------------
-
-def on_connect(client, userdata, flags, rc):
-    print("✅ Conectado a MQTT")
-
-    client.subscribe(TOPIC_COMMANDS)
-    print("✅ Suscrito a ble/commands")
-
-
-def on_message(client, userdata, msg):
-    payload = msg.payload.decode()
-
-    print("📥 Comando recibido MQTT:", payload)
-
-    # ✅ enviar a "Arduino"
-    enviar_bluetooth(payload)
+    def enviar_bluetooth(mensaje):
+        try:
+            print("📡 [BLE] Enviando a Arduino:", mensaje)
+            ser.write((mensaje + "\n").encode())
+            ser.flush()
+        except Exception as e:
+            print("❌ Error enviando por Bluetooth:", e)
 
 
 
 
+    # ----------------------
+    # ✅ MQTT CALLBACKS
+    # ----------------------
 
-# ----------------------
-# ✅ SETUP MQTT
-# ----------------------
+    def on_connect(client, userdata, flags, rc):
+        print("✅ Conectado a MQTT")
 
-client = mqtt.Client(client_id="ble-service-client")
-
-client.on_connect = on_connect
-client.on_message = on_message
-
-client.connect(MQTT_BROKER, MQTT_PORT, 60)
-
-client.loop_start()
-
-time.sleep(2)
-threading.Thread(target=leer_serial, daemon=True).start()
-
-print("🚀 MODO MQTT ACTIVO")
+        client.subscribe(TOPIC_COMMANDS)
+        print("✅ Suscrito a ble/commands")
 
 
+    def on_message(client, userdata, msg):
+        payload = msg.payload.decode()
 
-while True:
-    time.sleep(1)
+        print("📥 Comando recibido MQTT:", payload)
+
+        # ✅ enviar a "Arduino"
+        enviar_bluetooth(payload)
 
 
+
+
+
+    # ----------------------
+    # ✅ SETUP MQTT
+    # ----------------------
+
+    client = mqtt.Client(client_id="ble-service-client")
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+
+    client.loop_start()
+
+    time.sleep(2)
+    threading.Thread(target=leer_serial, daemon=True).start()
+
+    print("🚀 MODO MQTT ACTIVO")
+
+
+
+    while True:
+        time.sleep(1)
+
+except Exception as e:
+    print("💥 ERROR FATAL:", e)    
+    import traceback
+    print(traceback.format_exc())
+
+
+    # 🔥 evita que el contenedor muera
+    while True:
+        time.sleep(5)
