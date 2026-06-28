@@ -19,7 +19,7 @@ TOPIC_STATUS = "ble/status"
 
 
 print("⏳ esperando sistema estable...")
-time.sleep(5)
+time.sleep(8)
 
 # ----------------------
 # ✅ SERIAL HC-05
@@ -41,12 +41,13 @@ while True:
 while True:
     try:
         ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+        ser.write(b"\n")
         print("✅ Conectado a RFComm")
         time.sleep(2)  
         break
     except Exception as e:
         print("⏳ esperando conexión RFComm...", e)
-        time.sleep(2)
+        time.sleep(3)
 
 
 
