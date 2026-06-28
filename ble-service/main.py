@@ -61,16 +61,19 @@ def leer_serial():
             except:
                 pass
 
-            while True:
+            reintentando = True
+
+            while reintentando:
                 try:
                     print("🔄 reconectando RFComm...")
                     ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
                     print("✅ reconectado")
-                    break
-                except:
-                    time.sleep(2)
+                    reintentando = False
+                except Exception as e:
+                    print("⏳ esperando reconexión...", e)
+                    time.sleep(3)   # 🔥 MÁS LENTO todavía
 
-        time.sleep(0.05)
+        time.sleep(0.2)
 
 
 # ----------------------
