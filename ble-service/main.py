@@ -40,7 +40,16 @@ try:
                 time.sleep(2)
 
             print("✅ dispositivo detectado")
-            ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+            ser = serial.Serial(
+                "/dev/rfcomm0",
+                9600,
+                timeout=1,
+                write_timeout=1
+            )
+            ser.reset_input_buffer()
+            ser.reset_output_buffer()
+            ser.write(b"\n")
+            ser.flush()
             break
         except Exception as e:
             print("⏳ esperando RFComm...", e)
