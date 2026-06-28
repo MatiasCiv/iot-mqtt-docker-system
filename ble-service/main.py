@@ -18,35 +18,27 @@ TOPIC_STATUS = "ble/status"
 
 
 
-print("⏳ esperando sistema estable...")
-time.sleep(8)
+
 
 # ----------------------
 # ✅ SERIAL HC-05
 # ----------------------
 
-while True:
-    if os.path.exists("/dev/rfcomm0"):
-        try:
-            with open("/dev/rfcomm0"):
-                print("✅ rfcomm disponible")
-                break
-        except:
-            print("⏳ rfcomm existe pero no listo...")
-    else:
-        print("⏳ esperando rfcomm...")
 
-    time.sleep(2)
+print("⏳ esperando sistema Bluetooth estable...")
+time.sleep(8)
 
 while True:
     try:
         ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
-        ser.write(b"\n")
-        print("✅ Conectado a RFComm")
-        time.sleep(2)  
+        ser.write(b"\n")   # test real
+
+        print("✅ RFComm completamente operativo")
+        time.sleep(2)
         break
+
     except Exception as e:
-        print("⏳ esperando conexión RFComm...", e)
+        print("⏳ esperando RFComm real...", e)
         time.sleep(3)
 
 
