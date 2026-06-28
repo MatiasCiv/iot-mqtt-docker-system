@@ -4,6 +4,7 @@ services:
     container_name: mqtt
     ports:
       - "1883:1883"
+    restart: always
 
   ble-service:
     build: ./ble-service
@@ -13,6 +14,11 @@ services:
       
     devices:
       - "/dev/rfcomm0:/dev/rfcomm0"
+      
+    restart: always         
+    mem_limit: 200m         
+    cpus: "1.0"            
+
 
 
   backend:
@@ -24,4 +30,6 @@ services:
       - "5000:5000"
     volumes:
       - ./data:/app/data
+
+    restart: always
 
