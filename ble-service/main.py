@@ -3,6 +3,11 @@ import random
 import json
 import paho.mqtt.client as mqtt
 import serial
+import os
+
+
+
+
 
 MQTT_BROKER = "mqtt"
 MQTT_PORT = 1883
@@ -12,20 +17,30 @@ TOPIC_COMMANDS = "ble/commands"
 TOPIC_STATUS = "ble/status"
 
 
-
 # ----------------------
 # ✅ SERIAL HC-05
 # ----------------------
 
-ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
-print("✅ Conectado a /dev/rfcomm0")
+while not os.path.exists("/dev/rfcomm0"):
+    print("⏳ esperando /dev/rfcomm0...")
+    time.sleep(2)
 
+while True:
+    try:
+        ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+        print("✅ Conectado a RFComm")
+        break
+    except Exception as e:
+        print("⏳ esperando conexión RFComm...", e)
+        time.sleep(2)
 
 
 
 import threading
 
 def leer_serial():
+    global ser
+
     while True:
         try:
             if ser.in_waiting > 0:
@@ -34,13 +49,26 @@ def leer_serial():
                 if respuesta:
                     print("📥 Respuesta Arduino:", respuesta)
 
-                    
                     if client.is_connected():
                         client.publish(TOPIC_STATUS, respuesta)
 
-
         except Exception as e:
-            print("⚠️ Error en lectura serial:", e)
+            print("⚠️ Error serial:", e)
+
+            # 🔥 RECONEXIÓN AUTOMÁTICA
+            try:
+                ser.close()
+            except:
+                pass
+
+            while True:
+                try:
+                    print("🔄 reconectando RFComm...")
+                    ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
+                    print("✅ reconectado")
+                    break
+                except:
+                    time.sleep(2)
 
         time.sleep(0.05)
 
