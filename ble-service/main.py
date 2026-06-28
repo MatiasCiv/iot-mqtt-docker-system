@@ -28,8 +28,18 @@ try:
     print("⏳ esperando sistema Bluetooth estable...")
     time.sleep(8)
 
+
+
+
     while True:
         try:
+            print("⏳ esperando dispositivo /dev/rfcomm0...")
+
+            while not os.path.exists("/dev/rfcomm0"):
+                print("⏳ /dev/rfcomm0 no existe aún...")
+                time.sleep(2)
+
+            print("✅ dispositivo detectado")
             ser = serial.Serial("/dev/rfcomm0", 9600, timeout=1)
             break
         except Exception as e:
