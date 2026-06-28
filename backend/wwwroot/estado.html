@@ -267,7 +267,10 @@ async function controlRelay(relay, action) {
         body: JSON.stringify({ relay, action })
     });
     
-    setTimeout(cargarEstado, 1000);  // 🔥 actualizar después de 1s
+    
+        setTimeout(cargarEstado, 500);
+        setTimeout(cargarEstado, 2000);
+
 }
         method: "POST",
 

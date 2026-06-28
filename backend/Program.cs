@@ -22,13 +22,22 @@ var options = new MqttClientOptionsBuilder()
     .Build();
 
 // 🔥 conectar
+
+mqttClient.ConnectedAsync += async e =>
+{
+    Console.WriteLine("✅ Conectado a MQTT");
+
+    // 🔥 SUSCRIPCIONES
+    await mqttClient.SubscribeAsync("ble/readings");
+    await mqttClient.SubscribeAsync("ble/status");  
+
+    Console.WriteLine("✅ Suscrito a topics");
+};
+
 await mqttClient.ConnectAsync(options);
 
-Console.WriteLine("✅ Conectado a MQTT");
 
-// 🔥 SUSCRIPCIONES
-await mqttClient.SubscribeAsync("ble/readings");
-await mqttClient.SubscribeAsync("ble/status");  // 👈 añadir esto
+
 
 Console.WriteLine("✅ Suscrito a ble/readings y ble/status");
 
