@@ -28,11 +28,13 @@ def descolgar_servicio(signum, frame):
             ser.close()
     except:
         pass
-    sys.exit(0)
+    #sys.exit(0)
 
 # Registrar las señales del sistema operativo
 signal.signal(signal.SIGTERM, descolgar_servicio)
 signal.signal(signal.SIGINT, descolgar_servicio)
+
+
 
 def conectar_dispositivo():
     """Intenta abrir el puerto serial de forma segura sin bloquear el hilo indefinidamente."""
