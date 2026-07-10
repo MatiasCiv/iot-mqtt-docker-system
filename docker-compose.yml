@@ -1,24 +1,25 @@
 services:
   mqtt:
-    image: eclipse-mosquitto
+    image: eclipse-mosquitto:2.0
     container_name: mqtt
     ports:
       - "1883:1883"
-    restart: no
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped # 🔥 Cambiado para que sobreviva a reinicios
 
   ble-service:
     build: ./ble-service
     container_name: ble-service
+    restart: unless-stopped
+    privileged: true 
+    volumes:
+      - /dev:/dev:ro 
+    stop_grace_period: 3s 
     depends_on:
       - mqtt
-      
-    devices:
-      - "/dev/rfcomm0:/dev/rfcomm0"
-
-      
-    restart: no         
-           
-
 
 
   backend:
@@ -30,6 +31,4 @@ services:
       - "5000:5000"
     volumes:
       - ./data:/app/data
-
-    restart: no
-
+    restart: unless-stopped # 🔥 Cambiado para producción

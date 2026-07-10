@@ -1,0 +1,183 @@
+🧠 PROMPT COMPLETO – SISTEMA IOT BLUETOOTH + MQTT + DOCKER
+Estoy desarrollando un sistema IoT en Raspberry Pi con las siguientes características:
+
+🧱 Arquitectura:
+- Raspberry Pi (Linux)
+- Bluetooth clásico (HC-05 conectado a Arduino)
+- Puerto RFCOMM (/dev/rfcomm0)
+- Docker + docker-compose
+- MQTT (Mosquitto)
+- Backend en .NET (API + lógica)
+- Servicio Python (ble-service) que conecta Bluetooth ↔ MQTT
+- Frontend accesible en http://localhost:5000
+
+📡 Flujo de datos:
+Arduino (HC-05 por Bluetooth)
+→ /dev/rfcomm0
+→ ble-service (Python con pyserial)
+→ MQTT (topics: ble/readings, ble/status, ble/commands)
+→ backend (.NET)
+→ UI
+
+---
+
+⚙️ Estado actual del sistema:
+
+✅ Bluetooth configurado correctamente
+✅ rfcomm se gestiona con systemd (rfcomm-auto.service)
+✅ usando correctamente `rfcomm bind` (NO connect)
+✅ estado correcto tras reboot:
+   rfcomm0: ... channel 1 clean OR closed
+
+✅ docker-compose levanta:
+- mqtt
+- ble-service
+- backend
+
+✅ ble-service:
+- usa pyserial
+- implementa reconexión automática
+- thread leyendo serial
+- publica en MQTT
+- escucha comandos MQTT
+
+✅ protección de errores:
+- try global para evitar que el contenedor muera
+- retry de conexión serial
+- espera a que exista /dev/rfcomm0 antes de abrirlo
+
+✅ código actual para conexión serial:
+
+    while True:
+        try:
+            print("⏳ esperando dispositivo /dev/rfcomm0...")
+
+            while not os.path.exists("/dev/rfcomm0"):
+                print("⏳ /dev/rfcomm0 no existe aún...")
+                time.sleep(2)
+
+            print("✅ dispositivo detectado")
+
+            ser = serial.Serial(
+                "/dev/rfcomm0",
+                9600,
+                timeout=1,
+                write_timeout=1
+            )
+
+            ser.reset_input_buffer()
+            ser.reset_output_buffer()
+
+            ser.write(b"\n")
+            ser.flush()
+
+            print("✅ RFComm completamente operativo")
+
+            break
+
+        except Exception as e:
+            print("⏳ esperando RFComm...", e)
+            time.sleep(2)
+
+
+---
+
+⚠️ Problema actual:
+
+Después de reboot:
+
+- rfcomm está OK (clean o closed)
+- docker arranca correctamente
+- PERO:
+
+❌ ble-service se cae con exit 137
+❌ se conecta a MQTT pero se desconecta inmediatamente
+❌ backend no recibe datos
+❌ UI no muestra estado
+
+---
+
+🔍 Observaciones importantes:
+
+- No es problema de memoria (dmesg sin OOM)
+- No es problema de rfcomm (ya no está en "connected")
+- No hay conflictos con rfcomm.service (eliminado)
+- El dispositivo existe pero puede no estar listo completamente
+- Posible bloqueo interno de serial o fallo silencioso
+- Docker mata el proceso (exit 137) sin logs claros
+
+---
+
+🎯 Objetivo:
+
+Conseguir que:
+
+✅ ble-service NO se caiga nunca
+✅ conexión serial sea completamente estable
+✅ sistema funcione tras reboot sin intervención
+✅ se reciban datos del Arduino en backend/UI
+✅ evitar estados tty-attached rotos
+✅ arquitectura robusta en producción
+
+---
+
+🚀 Necesito ayuda para:
+
+1. Diagnosticar por qué ble-service sigue muriendo (exit 137) aunque:
+   - rfcomm esté limpio
+   - exista /dev/rfcomm0
+   - haya retry + try global
+
+2. Mejorar la apertura del puerto serial para evitar bloqueos internos
+
+3. Asegurar que el servicio Python:
+   - nunca se bloquea silenciosamente
+   - nunca muere
+   - siempre recupera conexión
+
+4. Validar si:
+   - rfcomm "bind" es suficiente o falta algo más
+   - hay condiciones de carrera con Docker
+
+---
+
+IMPORTANTE:
+Este sistema ya ha pasado por:
+- conflictos rfcomm connect vs bind
+- problemas de permisos
+- systemd duplicado
+- estado kernel persistente
+- race conditions de dispositivo
+- integración Docker + hardware real
+
+Ahora estamos en el último bug de estabilidad del servicio Python con el driver serial.
+
+---
+
+Quiero una solución robusta, estilo producción, no solo parches.
+
+
+💥 POR QUÉ ESTE PROMPT ES BUENO
+Incluye:
+✅ arquitectura completa
+✅ estado actual real
+✅ código relevante
+✅ problemas ya descartados
+✅ contexto técnico profundo
+✅ objetivo claro
+
+🚀 SIGUIENTE PASO
+Puedes pegar este prompt en:
+
+otro agente GPT
+Claude / Gemini
+compañero dev
+documentación del proyecto
+
+
+🏁
+💥 literalmente estás en el último 1% del sistema
+👉 si quieres en el siguiente paso podemos hacer:
+✅ versión final estable (código definitivo)
+✅ hardening producción
+✅ watchdog + healthcheck
