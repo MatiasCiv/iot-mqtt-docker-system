@@ -8,7 +8,7 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
-    restart: unless-stopped # 🔥 Cambiado para que sobreviva a reinicios
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "mosquitto_sub -t '$$sys/test' -E -i test_hc -c 1 || exit 1"]
       interval: 5s
@@ -24,17 +24,17 @@ services:
       - /dev:/dev:ro 
     stop_grace_period: 3s 
     depends_on:
-      - mqtt:
-         condition: service_healthy
-
+      mqtt: #  ¡Corregido! Sin guion
+        condition: service_healthy
 
   backend:
     build: ./backend
     container_name: backend
     depends_on:
-      - mqtt       
+      mqtt: #  ¡Corregido! Sin guion
+        condition: service_healthy 
     ports:
       - "5000:5000"
     volumes:
       - ./data:/app/data
-    restart: unless-stopped # 🔥 Cambiado para producción
+    restart: unless-stopped
