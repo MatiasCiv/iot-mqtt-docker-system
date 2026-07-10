@@ -16,3 +16,8 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 ENTRYPOINT ["dotnet", "WebApplication1.dll"]
+
+# 👇 SOLUCIÓN DE PERMISOS PARA .NET 8 (Añade estas 3 líneas antes del ENTRYPOINT)
+USER root
+RUN mkdir -p /app/data && chown -R app:app /app/data
+USER app
