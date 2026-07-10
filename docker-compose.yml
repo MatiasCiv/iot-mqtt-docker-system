@@ -10,7 +10,9 @@ services:
       - ./mosquitto/log:/mosquitto/log
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -t '$$sys/test' -E -i test_hc -c 1 || exit 1"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.01/1883' || exit 1"]
+
+      #test: ["CMD-SHELL", "mosquitto_sub -t '$$sys/test' -E -i test_hc -c 1 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 5
