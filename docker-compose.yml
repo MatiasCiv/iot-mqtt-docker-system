@@ -9,6 +9,11 @@ services:
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
     restart: unless-stopped # 🔥 Cambiado para que sobreviva a reinicios
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -t '$$sys/test' -E -i test_hc -c 1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   ble-service:
     build: ./ble-service
@@ -19,7 +24,8 @@ services:
       - /dev:/dev:ro 
     stop_grace_period: 3s 
     depends_on:
-      - mqtt
+      - mqtt:
+         condition: service_healthy
 
 
   backend:
