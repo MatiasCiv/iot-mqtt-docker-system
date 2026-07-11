@@ -4,15 +4,15 @@ services:
     container_name: mqtt
     ports:
       - "1883:1883"
+      - "9001:9001" # ◄--- CORREGIDO: Puerto WebSockets expuesto para el frontend de diagnóstico
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
     restart: unless-stopped
     healthcheck:
-      # Usamos mosquitto_check_version o un ping nativo silencioso en lugar de nc
       test: ["CMD-SHELL", "mosquitto_sub -t '$SYS/broker/version' -C 1 -E -i healthcheck-client || exit 1"]
-      interval: 10s # Subimos a 10s para dar estabilidad en el arranque de la Raspberry
+      interval: 10s
       timeout: 3s
       retries: 5
 
@@ -20,11 +20,10 @@ services:
     build: ./ble-service
     container_name: ble-service
     restart: unless-stopped
-    privileged: true 
+    privileged: true # ◄--- Mantiene el acceso privilegiado para el chip Bluetooth físico (hci0)
     volumes:
-      # 🔥 CORREGIDO: Eliminado el :ro. Python necesita permisos de escritura para abrir el puerto serial
       - /dev:/dev 
-      - /var/run/dbus:/var/run/dbus
+      - /var/run/dbus:/var/run/dbus # ◄--- Mapeo del demonio D-Bus de la Pi para que escanee Bleak
     stop_grace_period: 3s 
     depends_on:
       mqtt:
