@@ -241,4 +241,4 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // 5. INICIAR EL SERVIDOR WEB
-app.Run("http://0.0.0");
+app.Run("http://0.0.0.0:5000");
