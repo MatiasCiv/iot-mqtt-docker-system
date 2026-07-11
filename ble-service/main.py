@@ -40,17 +40,15 @@ def conectar_dispositivo():
     global ser, conectado_hw
     
     if not os.path.exists("/dev/rfcomm0"):
-        # Log silencioso si no existe el bind
         return False
 
     try:
-        # Testeo preventivo nativo
+        # Testeo preventivo nativo a bajo nivel
         fd = os.open("/dev/rfcomm0", os.O_RDWR | os.O_NONBLOCK)
         os.close(fd)
     except (OSError, PermissionError):
-        # Aquí cae si el archivo existe pero el HC-05 NO está enlazado por radio
         if conectado_hw:
-            print("📡 [BLE] Enlace de radio perdido con HC-05 (Dispositivo fuera de rango o apagado).")
+            print("📡 [BLE] Enlace de radio ausente (HC-05 apagado o fuera de rango).")
             conectado_hw = False
         return False
 
@@ -64,6 +62,7 @@ def conectar_dispositivo():
                 ser.write_timeout = 1
 
             if not ser.is_open:
+                # Si el HC-05 no está conectado por radio, ser.open() lanzará SerialException (Errno 5)
                 ser.open()
                 ser.reset_input_buffer()
                 ser.reset_output_buffer()
@@ -72,11 +71,17 @@ def conectar_dispositivo():
                 conectado_hw = True
                 print("✅ [BLE] Conexión física establecida con Arduino con éxito.")
                 return True
-        except (serial.SerialException, OSError):
-            # Captura el rebote si el handshake falla en el último milisegundo
+        except (serial.SerialException, OSError) as e:
+            # Captura el Errno 5 aquí mismo y silencia el bucle
+            if conectado_hw:
+                print(f"📡 [BLE] Fallo de enlace RF durante la apertura: {e}")
             conectado_hw = False
             if ser and ser.is_open:
-                ser.close()
+                try:
+                    ser.close()
+                except:
+                    pass
+            return False  # IMPORTANTE: Forzamos el retorno en falso para activar el sleep de 5s
         finally:
             lock_serial.release()
     return False

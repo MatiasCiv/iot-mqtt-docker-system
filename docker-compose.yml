@@ -10,10 +10,9 @@ services:
       - ./mosquitto/log:/mosquitto/log
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "1883"]
-
-      #test: ["CMD-SHELL", "mosquitto_sub -t '$$sys/test' -E -i test_hc -c 1 || exit 1"]
-      interval: 5s
+      # Usamos mosquitto_check_version o un ping nativo silencioso en lugar de nc
+      test: ["CMD-SHELL", "mosquitto_sub -t '$SYS/broker/version' -C 1 -E -i healthcheck-client || exit 1"]
+      interval: 10s # Subimos a 10s para dar estabilidad en el arranque de la Raspberry
       timeout: 3s
       retries: 5
 
@@ -23,24 +22,24 @@ services:
     restart: unless-stopped
     privileged: true 
     volumes:
-      - /dev:/dev:ro 
+      # 🔥 CORREGIDO: Eliminado el :ro. Python necesita permisos de escritura para abrir el puerto serial
+      - /dev:/dev 
     stop_grace_period: 3s 
     depends_on:
-      mqtt: #  ¡Corregido! Sin guion
+      mqtt:
         condition: service_healthy
 
   backend:
     build: ./backend
     container_name: backend
     depends_on:
-      mqtt: #  ¡Corregido! Sin guion
+      mqtt:
         condition: service_healthy 
     ports:
       - "5000:5000"
     environment:
-      - ASPNETCORE_URLS=http://+:5000  # 🔥 FUERZA A .NET A ESCUCHAR EN EL PUERTO 5000
-      - ASPNETCORE_ENVIRONMENT=Development   # Te dará logs detallados en la consola si falla
-
+      - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_ENVIRONMENT=Development
     volumes:
       - ./data:/app/data
     restart: unless-stopped
