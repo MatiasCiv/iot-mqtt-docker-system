@@ -9,6 +9,12 @@ using WebApplication1.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 🔥 FORZAR A KESTREL A ESCUCHAR EN TODAS LAS INTERFACES INTERNAS EN EL PUERTO 5000
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5000); 
+});
+
 // 1. CONFIGURACIÓN DE SERVICIOS (Dependency Injection primero)
 var factory = new MqttFactory();
 var mqttClient = factory.CreateMqttClient();
@@ -241,4 +247,4 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // 5. INICIAR EL SERVIDOR WEB
-app.Run("http://0.0.0.0:5000");
+app.Run();
