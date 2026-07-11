@@ -38,7 +38,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - ASPNETCORE_URLS=http://0.0.0  # 🔥 FUERZA A .NET A ESCUCHAR EN EL PUERTO 5000
+      - ASPNETCORE_URLS=http://+:5000  # 🔥 FUERZA A .NET A ESCUCHAR EN EL PUERTO 5000
       - ASPNETCORE_ENVIRONMENT=Development   # Te dará logs detallados en la consola si falla
 
     volumes:

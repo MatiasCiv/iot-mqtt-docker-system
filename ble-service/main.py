@@ -35,16 +35,27 @@ signal.signal(signal.SIGTERM, descolgar_servicio)
 signal.signal(signal.SIGINT, descolgar_servicio)
 
 
-
 def conectar_dispositivo():
-    """Intenta abrir el puerto serial de forma segura sin bloquear el hilo indefinidamente."""
+    """Intenta abrir el puerto serial de forma segura capturando estados no enlazados."""
     global ser, conectado_hw
-    with lock_serial:
+    
+    if not os.path.exists("/dev/rfcomm0"):
+        # Log silencioso si no existe el bind
+        return False
+
+    try:
+        # Testeo preventivo nativo
+        fd = os.open("/dev/rfcomm0", os.O_RDWR | os.O_NONBLOCK)
+        os.close(fd)
+    except (OSError, PermissionError):
+        # Aquí cae si el archivo existe pero el HC-05 NO está enlazado por radio
+        if conectado_hw:
+            print("📡 [BLE] Enlace de radio perdido con HC-05 (Dispositivo fuera de rango o apagado).")
+            conectado_hw = False
+        return False
+
+    if lock_serial.acquire(timeout=1.0):
         try:
-            if not os.path.exists("/dev/rfcomm0"):
-                return False
-            
-            # Configuración limpia del objeto Serial sin abrirlo inmediatamente
             if ser is None:
                 ser = serial.Serial()
                 ser.port = "/dev/rfcomm0"
@@ -56,21 +67,19 @@ def conectar_dispositivo():
                 ser.open()
                 ser.reset_input_buffer()
                 ser.reset_output_buffer()
-                # Test de comunicación inicial
                 ser.write(b"\n")
                 ser.flush()
                 conectado_hw = True
-                print("✅ Puerto RFComm completamente operativo.")
+                print("✅ [BLE] Conexión física establecida con Arduino con éxito.")
                 return True
-        except (serial.SerialException, OSError) as e:
-            print(f"⏳ Puerto detectado pero no está listo (Arduino desconectado/fuera de rango): {e}")
+        except (serial.SerialException, OSError):
+            # Captura el rebote si el handshake falla en el último milisegundo
             conectado_hw = False
             if ser and ser.is_open:
                 ser.close()
-        except Exception as e:
-            print(f"❌ Error inesperado al abrir puerto: {e}")
-            conectado_hw = False
-        return False
+        finally:
+            lock_serial.release()
+    return False
 
 def enviar_bluetooth(mensaje):
     """Envía datos al puerto serial de forma segura garantizando la exclusión mutua."""
@@ -104,40 +113,48 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"❌ Error al procesar mensaje MQTT: {e}")
 
+
 def hilo_lectura_serial(client):
-    """Hilo secundario dedicado exclusivamente a recibir datos del Arduino."""
+    """Hilo secundario que gestiona la lectura y reporta el estado a MQTT."""
     global conectado_hw, running
     print("🧵 Hilo de lectura serial iniciado.")
     
+    ultimo_estado_reportado = None
+
     while running:
+        # Reportar cambio de estado hacia MQTT para que la UI se entere
+        if conectado_hw != ultimo_estado_reportado:
+            estado_str = "CONNECTED" if conectado_hw else "DISCONNECTED"
+            try:
+                client.publish(TOPIC_STATUS, f"STATUS:{estado_str}", qos=1, retain=True)
+                ultimo_estado_reportado = conectado_hw
+            except:
+                pass
+
         if not conectado_hw:
             conectar_dispositivo()
             if not conectado_hw:
-                time.sleep(4) # Espera prudencial antes del siguiente intento
+                time.sleep(5) # Espera larga y relajada si el hardware no está disponible
                 continue
 
-        try:
-            # Comprobación de datos en espera de forma no bloqueante
-            if ser and ser.is_open and ser.in_waiting > 0:
-                linea = ser.readline().decode('utf-8', errors='ignore').strip()
-                if linea:
-                    print(f"📥 Datos recibidos de Arduino: {linea}")
-                    if client.is_connected():
+        if lock_serial.acquire(timeout=1.0):
+            try:
+                if ser and ser.is_open:
+                    linea = ser.readline().decode('utf-8', errors='ignore').strip()
+                    if linea:
+                        print(f"📥 Datos recibidos de Arduino: {linea}")
                         client.publish(TOPIC_STATUS, linea, qos=1)
-        except (serial.SerialException, OSError) as e:
-            print(f"🔌 Desconexión del dispositivo detectada durante la lectura: {e}")
-            conectado_hw = False
-            with lock_serial:
+            except (serial.SerialException, OSError) as e:
+                # Ya no mostramos un 'Error Inesperado' escandaloso, tratamos el Errno 5 como una desconexión normal
+                conectado_hw = False
                 try:
                     ser.close()
                 except:
                     pass
-        except Exception as e:
-            print(f"⚠️ Error inesperado en el hilo serial: {e}")
-            time.sleep(1)
-            
-        time.sleep(0.1) # Evita la saturación de la CPU
-
+            finally:
+                lock_serial.release()
+                
+        time.sleep(0.2)
 # --- FLUJO PRINCIPAL ---
 def main():
     print("🚀 Iniciando ble-service en modo producción...")
