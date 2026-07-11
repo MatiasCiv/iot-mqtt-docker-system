@@ -5,18 +5,24 @@ import signal
 import threading
 import paho.mqtt.client as mqtt
 import serial
+import asyncio
+import json
+import logging
+from bleak import BleakScanner
 
 # Configuración
 MQTT_BROKER = "mqtt"
 MQTT_PORT = 1883
 TOPIC_COMMANDS = "ble/commands"
 TOPIC_STATUS = "ble/status"
+TOPIC_DIAGNOSTICO = "ble/diagnostico"
 
 # Variables de control global y concurrencia
 running = True
 conectado_hw = False
 ser = None
 lock_serial = threading.Lock()
+client = None  # Instancia global del cliente MQTT para que la use el callback de BLE
 
 def descolgar_servicio(signum, frame):
     """Maneja el apagado limpio solicitado por Docker (SIGTERM / SIGINT)."""
@@ -28,11 +34,54 @@ def descolgar_servicio(signum, frame):
             ser.close()
     except:
         pass
-    #sys.exit(0)
 
 # Registrar las señales del sistema operativo
 signal.signal(signal.SIGTERM, descolgar_servicio)
 signal.signal(signal.SIGINT, descolgar_servicio)
+
+
+def callback_ble(device, advertising_data):
+    """Se ejecuta cada vez que la Pi capta un paquete BLE en el aire."""
+    global client
+    nombre = device.name if device.name else "Dispositivo Desconocido"
+    mac = device.address
+    rssi = advertising_data.rssi
+    
+    manu_data = {}
+    if advertising_data.manufacturer_data:
+        for company_id, data_bytes in advertising_data.manufacturer_data.items():
+            manu_data[str(company_id)] = data_bytes.hex()
+
+    payload = {
+        "mac": mac,
+        "nombre": nombre,
+        "rssi": rssi,
+        "manufacturer_data": manu_data
+    }
+    
+    try:
+        # Corregido: Ahora usa la instancia de cliente correcta
+        if client and client.is_connected():
+            client.publish(TOPIC_DIAGNOSTICO, json.dumps(payload))
+    except Exception as e:
+        print(f"Error publicando diagnóstico BLE: {e}")
+
+async def tarea_escaneo_ble():
+    """Inicia el escáner continuo de Bleak."""
+    print("📡 [BLE] Iniciando escáner BLE Pasivo...")
+    scanner = BleakScanner(detection_callback=callback_ble)
+    await scanner.start()
+    while running:
+        await asyncio.sleep(1)
+
+def hilo_asincrono_ble():
+    """Hilo dedicado exclusivamente a ejecutar el bucle de eventos asíncronos para BLE."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(tarea_escaneo_ble())
+    except Exception as e:
+        print(f"❌ Error en el bucle asíncrono BLE: {e}")
 
 
 def conectar_dispositivo():
@@ -72,7 +121,6 @@ def conectar_dispositivo():
                 print("✅ [BLE] Conexión física establecida con Arduino con éxito.")
                 return True
         except (serial.SerialException, OSError) as e:
-            # Captura el Errno 5 aquí mismo y silencia el bucle
             if conectado_hw:
                 print(f"📡 [BLE] Fallo de enlace RF durante la apertura: {e}")
             conectado_hw = False
@@ -81,7 +129,7 @@ def conectar_dispositivo():
                     ser.close()
                 except:
                     pass
-            return False  # IMPORTANTE: Forzamos el retorno en falso para activar el sleep de 5s
+            return False
         finally:
             lock_serial.release()
     return False
@@ -103,14 +151,14 @@ def enviar_bluetooth(mensaje):
             conectado_hw = False
 
 # --- CALLBACKS MQTT ---
-def on_connect(client, userdata, flags, rc):
+def on_connect(client_obj, userdata, flags, rc):
     if rc == 0:
         print("✅ Conectado con éxito al Broker MQTT")
-        client.subscribe(TOPIC_COMMANDS)
+        client_obj.subscribe(TOPIC_COMMANDS)
     else:
         print(f"❌ Fallo de conexión a MQTT. Código de retorno: {rc}")
 
-def on_message(client, userdata, msg):
+def on_message(client_obj, userdata, msg):
     try:
         payload = msg.payload.decode('utf-8')
         print(f"📥 Comando recibido desde MQTT: {payload}")
@@ -119,7 +167,7 @@ def on_message(client, userdata, msg):
         print(f"❌ Error al procesar mensaje MQTT: {e}")
 
 
-def hilo_lectura_serial(client):
+def hilo_lectura_serial(client_mqtt):
     """Hilo secundario que gestiona la lectura y reporta el estado a MQTT."""
     global conectado_hw, running
     print("🧵 Hilo de lectura serial iniciado.")
@@ -131,7 +179,7 @@ def hilo_lectura_serial(client):
         if conectado_hw != ultimo_estado_reportado:
             estado_str = "CONNECTED" if conectado_hw else "DISCONNECTED"
             try:
-                client.publish(TOPIC_STATUS, f"STATUS:{estado_str}", qos=1, retain=True)
+                client_mqtt.publish(TOPIC_STATUS, f"STATUS:{estado_str}", qos=1, retain=True)
                 ultimo_estado_reportado = conectado_hw
             except:
                 pass
@@ -139,7 +187,7 @@ def hilo_lectura_serial(client):
         if not conectado_hw:
             conectar_dispositivo()
             if not conectado_hw:
-                time.sleep(5) # Espera larga y relajada si el hardware no está disponible
+                time.sleep(5)
                 continue
 
         if lock_serial.acquire(timeout=1.0):
@@ -148,9 +196,8 @@ def hilo_lectura_serial(client):
                     linea = ser.readline().decode('utf-8', errors='ignore').strip()
                     if linea:
                         print(f"📥 Datos recibidos de Arduino: {linea}")
-                        client.publish(TOPIC_STATUS, linea, qos=1)
+                        client_mqtt.publish(TOPIC_STATUS, linea, qos=1)
             except (serial.SerialException, OSError) as e:
-                # Ya no mostramos un 'Error Inesperado' escandaloso, tratamos el Errno 5 como una desconexión normal
                 conectado_hw = False
                 try:
                     ser.close()
@@ -160,11 +207,13 @@ def hilo_lectura_serial(client):
                 lock_serial.release()
                 
         time.sleep(0.2)
+
 # --- FLUJO PRINCIPAL ---
 def main():
+    global client
     print("🚀 Iniciando ble-service en modo producción...")
     
-    # Inicialización del cliente MQTT
+    # Inicialización del cliente MQTT en la instancia global
     client = mqtt.Client(client_id="ble-service-client")
     client.on_connect = on_connect
     client.on_message = on_message
@@ -182,9 +231,13 @@ def main():
     # Iniciar procesamiento de la red MQTT en un hilo secundario gestionado por Paho
     client.loop_start()
 
-    # Lanzar el hilo encargado de la comunicación por puerto serial
-    worker = threading.Thread(target=hilo_lectura_serial, args=(client,), daemon=True)
-    worker.start()
+    # Lanzar el hilo encargado de la comunicación por puerto serial (Arduino)
+    worker_serial = threading.Thread(target=hilo_lectura_serial, args=(client,), daemon=True)
+    worker_serial.start()
+
+    # Lanzar el hilo encargado del escáner BLE Pasivo (ESP32 / Diagnóstico)
+    worker_ble = threading.Thread(target=hilo_asincrono_ble, daemon=True)
+    worker_ble.start()
 
     # Bucle de monitorización del hilo principal
     while running:
@@ -195,4 +248,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"💥 Error crítico no controlado en la aplicación: {e}")
-        sys.exit(1) # Permite a Docker identificar el fallo y reiniciar el contenedor
+        sys.exit(1)

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico BLE - Sistema IoT</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #121214; color: #e1e1e6; margin: 20px; }
+        h1 { color: #4ade80; border-bottom: 2px solid #202024; padding-bottom: 10px; }
+        .grid { width: 100%; border-collapse: collapse; margin-top: 20px; background: #202024; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #29292e; }
+        th { background: #29292e; color: #4ade80; text-transform: uppercase; font-size: 12px; }
+        tr:hover { background: #2a2a30; }
+        .rssi-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .signal-good { background: #15803d; color: #bbf7d0; }
+        .signal-medium { background: #854d0e; color: #fef08a; }
+        .signal-bad { background: #991b1b; color: #fecaca; }
+        .manu-data { font-family: monospace; color: #a1a1aa; font-size: 13px; word-break: break-all; }
+    </style>
+</head>
+<body>
+
+    <h1>📡 Panel de Diagnóstico BLE en Tiempo Real</h1>
+    <p>Escaneando el entorno desde la Raspberry Pi 4. Los dispositivos aparecerán y se actualizarán automáticamente.</p>
+
+    <table class="grid">
+        <thead>
+            <tr>
+                <th>Dirección MAC</th>
+                <th>Nombre del Dispositivo</th>
+                <th>Señal (RSSI)</th>
+                <th>Manufacturer Data (Payload Hex)</th>
+                <th>Última actualización</th>
+            </tr>
+        </thead>
+        <tbody id="dispositivos-lista">
+            </tbody>
+    </table>
+
+    <script>
+        // Conectar al puerto WebSockets de Mosquitto usando la IP actual de la Pi o localhost
+        const brokerUrl = `ws://${window.location.hostname}:9001`;
+        console.log("Conectando al broker MQTT en:", brokerUrl);
+        
+        const client = mqtt.connect(brokerUrl);
+        const dispositivos = {};
+
+        client.on('connect', () => {
+            console.log('✅ Conectado a Mosquitto vía WebSockets con éxito');
+            client.subscribe('ble/diagnostico');
+        });
+
+        client.on('message', (topic, message) => {
+            if (topic === 'ble/diagnostico') {
+                const data = JSON.parse(message.toString());
+                
+                // Guardar o actualizar el dispositivo en nuestro objeto en memoria
+                dispositivos[data.mac] = {
+                    nombre: data.nombre,
+                    rssi: data.rssi,
+                    manu_data: JSON.stringify(data.manufacturer_data),
+                    timestamp: new Date().toLocaleTimeString()
+                };
+
+                renderizarTabla();
+            }
+        });
+
+        function renderizarTabla() {
+            const tbody = document.getElementById('dispositivos-lista');
+            tbody.innerHTML = '';
+
+            // Ordenar los dispositivos por intensidad de señal (de mayor a menor)
+            const listaOrdenada = Object.keys(dispositivos).sort((a, b) => dispositivos[b].rssi - dispositivos[a].rssi);
+
+            listaOrdenada.forEach(mac => {
+                const dev = dispositivos[mac];
+                
+                // Determinar el color del badge de señal según los dBm
+                let rssiClass = 'signal-good';
+                if (dev.rssi < -80) rssiClass = 'signal-bad';
+                else if (dev.rssi < -65) rssiClass = 'signal-medium';
+
+                const row = `
+                    <tr>
+                        <td style="font-weight: bold; color: #60a5fa;">${mac}</td>
+                        <td>${dev.nombre}</td>
+                        <td><span class="rssi-badge ${rssiClass}">${dev.rssi} dBm</span></td>
+                        <td class="manu-data">${dev.manu_data !== '{}' ? dev.manu_data : '<span style="color:#52525b;">Ninguno</span>'}</td>
+                        <td style="color: #71717a; font-size: 13px;">${dev.timestamp}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>

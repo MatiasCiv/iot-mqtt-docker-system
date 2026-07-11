@@ -24,6 +24,7 @@ services:
     volumes:
       # 🔥 CORREGIDO: Eliminado el :ro. Python necesita permisos de escritura para abrir el puerto serial
       - /dev:/dev 
+      - /var/run/dbus:/var/run/dbus
     stop_grace_period: 3s 
     depends_on:
       mqtt:
