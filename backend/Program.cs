@@ -241,7 +241,7 @@ app.MapPost("/relay-control", async (IMqttClient mqttClient, RelayRequest data) 
     return Results.Ok(new { mensaje = "Comando enviado" });
 });
 
-app.MapGet("/", () => Results.Text("<h1>🚀 Backend IoT operativo en .NET 8</h1>", "text/html"));
+//app.MapGet("/", () => Results.Text("<h1>🚀 Backend IoT operativo en .NET 8</h1>", "text/html"));
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
