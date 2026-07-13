@@ -339,16 +339,31 @@
                 sensorAlta.classList.remove('active');
                 sensorBaja.classList.remove('active');
                 txtEstado.innerText = 'VACÍO';
-                txtEstado.style.color = '#f44336';}
-            else if (nivel === 'medio') {agua.style.height = '50%'; // Nivel mediosensorAlta.classList.remove('active');
-            // sensorBaja.classList.add('active');
-            //  // Boya inferior flotandotxtEstado.innerText = 'MEDIO';
-            // txtEstado.style.color = '#ffeb3b';}else if (nivel === 'lleno') {agua.style.height = '95%'; 
-            // // Depósito llenosensorAlta.classList.add('active'); 
-            // // Ambas boyas activassensorBaja.classList.add('active');
-            // txtEstado.innerText = 'LLENO';txtEstado.style.color = '#4caf50';}
-            // // 3. Lógica y visualización de la Bomba y Animación de Flujoif (estadoBomba === 'run') {motor.classList.add('running');scadaView.classList.add('running'); 
-            // // Activa la animación del agua en las tuberías} else {motor.classList.remove('running');scadaView.classList.remove('running'); // Detiene el flujo
-            
-        }
+                txtEstado.style.color = '#f44336';
+            }
+            else if (nivel === 'medio') {
+                agua.style.height = '50%'; // Nivel medio
+                sensorAlta.classList.remove('active');
+                sensorBaja.classList.add('active'); // Boya inferior flotando
+                txtEstado.innerText = 'MEDIO';
+                txtEstado.style.color = '#ffeb3b';
+            }
+            else if (nivel === 'lleno') {
+                agua.style.height = '95%'; // Depósito lleno
+                sensorAlta.classList.add('active'); // Ambas boyas activas
+                sensorBaja.classList.add('active');
+                txtEstado.innerText = 'LLENO';
+                txtEstado.style.color = '#4caf50';
+            }
+
+            // 3. Lógica y visualización de la Bomba y Animación de Flujo
+            if (estadoBomba === 'run') {
+                motor.classList.add('running');
+                scadaView.classList.add('running'); // Activa la animación del agua en las tuberías
+            } else {
+                motor.classList.remove('running');
+                scadaView.classList.remove('running'); // Detiene el flujo
+            }
+
+        
     }
