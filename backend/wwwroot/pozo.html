@@ -91,6 +91,7 @@
             font-size: 11px;
             font-weight: bold;
             color: #111;
+            z-index: 3; /* Asegura quedar sobre el fondo del pozo */
         }
 
         .pump.running {
@@ -101,20 +102,22 @@
         /* --- TUBERÍAS Y FLUJO --- */
         .pipe-v1 {
             position: absolute;
-            bottom: 85px;
-            left: 70px;
+            bottom: 90px; /* Conecta con la parte superior de la bomba */
+            left: 125px;   /* Alineado perfectamente con el centro de la bomba */
             width: 10px;
-            height: 285px;
+            height: 280px;
             background: var(--pipe-bg);
+            z-index: 2;
         }
 
         .pipe-h {
             position: absolute;
             top: 130px;
-            left: 70px;
-            width: 480px;
+            left: 125px;
+            width: 425px;
             height: 10px;
             background: var(--pipe-bg);
+            z-index: 2;
         }
 
         .pipe-v2 {
@@ -124,9 +127,9 @@
             width: 10px;
             height: 50px;
             background: var(--pipe-bg);
+            z-index: 2;
         }
 
-        /* Animación de flujo de agua dentro de las tuberías */
         .flow {
             position: absolute;
             background: var(--water-color);
@@ -138,25 +141,50 @@
             opacity: 1;
         }
 
+        /* Animación AGUA HACIA ARRIBA en el tubo del pozo */
         .pipe-v1 .flow {
             width: 100%;
             height: 100%;
             bottom: 0;
-            background: linear-gradient(to top, var(--pipe-bg), var(--water-color));
+            background: linear-gradient(to top, var(--water-color) 50%, var(--pipe-bg) 50%);
+            background-size: 100% 20px;
+            animation: moveFlowUp 1s linear infinite;
         }
 
+        /* Animación hacia la derecha en la tubería horizontal */
         .pipe-h .flow {
             width: 100%;
             height: 100%;
             left: 0;
             background: linear-gradient(to right, var(--water-color) 50%, var(--pipe-bg) 50%);
             background-size: 20px 100%;
-            animation: moveFlow 1s linear infinite;
+            animation: moveFlowRight 1s linear infinite;
         }
 
-        @keyframes moveFlow {
+        /* Animación hacia la derecha en la tubería abajo */
+        .pipe-v2 .flow {
+	    width: 100%;
+	    height: 100%;
+	    top: 0;
+	    background: linear-gradient(to bottom, var(--water-color) 50%, var(--pipe-bg) 50%);
+	    background-size: 100% 20px;
+	    animation: moveFlowDown 1s linear infinite;
+	}
+
+
+        @keyframes moveFlowUp {
+            0% { background-position: 0 20px; }
+            100% { background-position: 0 0; }
+        }
+
+        @keyframes moveFlowRight {
             0% { background-position: 0 0; }
             100% { background-position: 20px 0; }
+        }
+
+        @keyframes moveFlowDown {
+            0% { background-position: 0 0; }
+	    100% { background-position: 0 20px; }
         }
 
         /* --- DEPÓSITO --- */
@@ -180,7 +208,7 @@
             transition: height 0.8s ease-in-out;
         }
 
-        /* --- BOYAS / SENSORS --- */
+        /* --- SENSORS --- */
         .sensor {
             position: absolute;
             right: 125px;
@@ -213,7 +241,7 @@
             box-shadow: 0 0 10px #ffeb3b;
         }
 
-        /* --- CUADRO DE MANDOS DE SIMULACIÓN --- */
+        /* --- MANDO SIMULACION --- */
         .simulation-panel {
             margin-top: 20px;
             background-color: var(--panel-bg);
@@ -235,7 +263,7 @@
             color: #b0bec5;
         }
 
-        select, button {
+        select {
             padding: 8px 12px;
             background-color: #37474f;
             color: white;
@@ -245,7 +273,7 @@
             font-size: 14px;
         }
 
-        select:focus, button:focus {
+        select:focus {
             outline: none;
             border-color: var(--water-color);
         }
@@ -264,42 +292,33 @@
 </head>
 <body>
 
-    <h1>SCADA Simulación Pozo y Depósito</h1>
+    
 
-    <!-- Contenedor Principal del SCADA -->
     <div class="scada-container" id="scada-view">
-        
-        <!-- Estado en texto -->
+	<h2 style="text-align: center;">Pozo y Depósito</h2>
         <div class="status-text">
             ESTADO: <span id="txt-estado" style="color: #ffeb3b;">VACÍO</span>
         </div>
 
-        <!-- Tuberías -->
         <div class="pipe-v1"><div class="flow"></div></div>
         <div class="pipe-h"><div class="flow"></div></div>
         <div class="pipe-v2"><div class="flow"></div></div>
 
-        <!-- Estructura Pozo -->
         <div class="ground">
             <div class="well">
                 <div class="well-water"></div>
-                <!-- Bomba / Motor -->
                 <div id="bomba-motor" class="pump">BOMBA</div>
             </div>
         </div>
 
-        <!-- Depósito -->
         <div class="tank-container">
             <div id="agua-deposito" class="tank-water"></div>
         </div>
 
-        <!-- Boyas Flotadoras visuales -->
         <div id="sensor-alta" class="sensor"></div>
         <div id="sensor-baja" class="sensor"></div>
-
     </div>
-
-    <!-- Panel de Control Externo (Escribir señales a mano) -->
+    <!-- Panel de control inferior -->
     <div class="simulation-panel">
         <div class="control-group">
             <label for="select-nivel">Señales de las Boyas (Nivel):</label>
@@ -321,11 +340,9 @@
 
     <script>
         function actualizarSCADA() {
-            // 1. Obtener los valores seleccionados a mano por el usuario
             const nivel = document.getElementById('select-nivel').value;
             const estadoBomba = document.getElementById('select-bomba').value;
 
-            // Elementos del DOM a modificar
             const agua = document.getElementById('agua-deposito');
             const sensorAlta = document.getElementById('sensor-alta');
             const sensorBaja = document.getElementById('sensor-baja');
@@ -333,37 +350,41 @@
             const scadaView = document.getElementById('scada-view');
             const txtEstado = document.getElementById('txt-estado');
 
-            // 2. Lógica y visualización del Depósito y las Boyas
+            // Control de Nivel y visualización de Boyas
             if (nivel === 'vacio') {
-                agua.style.height = '10%'; // Muestra un mínimo de agua
+                agua.style.height = '10%'; 
                 sensorAlta.classList.remove('active');
                 sensorBaja.classList.remove('active');
                 txtEstado.innerText = 'VACÍO';
                 txtEstado.style.color = '#f44336';
             }
             else if (nivel === 'medio') {
-                agua.style.height = '50%'; // Nivel medio
+                agua.style.height = '50%'; 
                 sensorAlta.classList.remove('active');
-                sensorBaja.classList.add('active'); // Boya inferior flotando
+                sensorBaja.classList.add('active'); 
                 txtEstado.innerText = 'MEDIO';
                 txtEstado.style.color = '#ffeb3b';
             }
             else if (nivel === 'lleno') {
-                agua.style.height = '95%'; // Depósito lleno
-                sensorAlta.classList.add('active'); // Ambas boyas activas
+                agua.style.height = '95%'; 
+                sensorAlta.classList.add('active'); 
                 sensorBaja.classList.add('active');
                 txtEstado.innerText = 'LLENO';
                 txtEstado.style.color = '#4caf50';
             }
 
-            // 3. Lógica y visualización de la Bomba y Animación de Flujo
+            // Control del Motor de la Bomba
             if (estadoBomba === 'run') {
                 motor.classList.add('running');
-                scadaView.classList.add('running'); // Activa la animación del agua en las tuberías
+                scadaView.classList.add('running'); 
             } else {
                 motor.classList.remove('running');
-                scadaView.classList.remove('running'); // Detiene el flujo
+                scadaView.classList.remove('running'); 
             }
+        }
 
-        
-    }
+        // Carga inicial al abrir el navegador
+        actualizarSCADA();
+    </script>
+</body>
+</html>
