@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA - Sistema de Bombeo</title>
+    <style>
+        :root {
+            --bg-color: #1a1a24;
+            --panel-bg: #242432;
+            --text-color: #ffffff;
+            --water-color: #00bcd4;
+            --pipe-bg: #455a64;
+            --motor-stop: #b0bec5;
+            --motor-run: #4caf50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+
+        .scada-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 1px solid #37474f;
+        }
+
+        /* --- TERRENO Y POZO --- */
+        .ground {
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            width: 150px;
+            height: 250px;
+            background: #3e2723;
+            border-top: 8px solid #4caf50;
+        }
+
+        .well {
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            width: 70px;
+            height: 230px;
+            background: #111;
+            border-left: 4px solid #78909c;
+            border-right: 4px solid #78909c;
+        }
+
+        .well-water {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 188, 212, 0.4);
+        }
+
+        /* --- BOMBA / MOTOR --- */
+        .pump {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 34px;
+            height: 70px;
+            background-color: var(--motor-stop);
+            border-radius: 4px;
+            border: 2px solid #37474f;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #111;
+        }
+
+        .pump.running {
+            background-color: var(--motor-run);
+            box-shadow: 0 0 15px var(--motor-run);
+        }
+
+        /* --- TUBERÍAS Y FLUJO --- */
+        .pipe-v1 {
+            position: absolute;
+            bottom: 85px;
+            left: 70px;
+            width: 10px;
+            height: 285px;
+            background: var(--pipe-bg);
+        }
+
+        .pipe-h {
+            position: absolute;
+            top: 130px;
+            left: 70px;
+            width: 480px;
+            height: 10px;
+            background: var(--pipe-bg);
+        }
+
+        .pipe-v2 {
+            position: absolute;
+            top: 130px;
+            left: 540px;
+            width: 10px;
+            height: 50px;
+            background: var(--pipe-bg);
+        }
+
+        /* Animación de flujo de agua dentro de las tuberías */
+        .flow {
+            position: absolute;
+            background: var(--water-color);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .running .flow {
+            opacity: 1;
+        }
+
+        .pipe-v1 .flow {
+            width: 100%;
+            height: 100%;
+            bottom: 0;
+            background: linear-gradient(to top, var(--pipe-bg), var(--water-color));
+        }
+
+        .pipe-h .flow {
+            width: 100%;
+            height: 100%;
+            left: 0;
+            background: linear-gradient(to right, var(--water-color) 50%, var(--pipe-bg) 50%);
+            background-size: 20px 100%;
+            animation: moveFlow 1s linear infinite;
+        }
+
+        @keyframes moveFlow {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
+
+        /* --- DEPÓSITO --- */
+        .tank-container {
+            position: absolute;
+            top: 170px;
+            right: 150px;
+            width: 160px;
+            height: 200px;
+            border: 4px solid #cfd8dc;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.03);
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .tank-water {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #0097a7, var(--water-color));
+            transition: height 0.8s ease-in-out;
+        }
+
+        /* --- BOYAS / SENSORS --- */
+        .sensor {
+            position: absolute;
+            right: 125px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #555;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: background-color 0.3s;
+        }
+
+        .sensor::after {
+            position: absolute;
+            left: 25px;
+            top: -2px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        #sensor-alta { top: 200px; }
+        #sensor-alta::after { content: "Boya Alta (Lleno)"; }
+
+        #sensor-baja { top: 310px; }
+        #sensor-baja::after { content: "Boya Baja (Medio)"; }
+
+        .sensor.active {
+            background-color: #ffeb3b;
+            box-shadow: 0 0 10px #ffeb3b;
+        }
+
+        /* --- CUADRO DE MANDOS DE SIMULACIÓN --- */
+        .simulation-panel {
+            margin-top: 20px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #37474f;
+            display: flex;
+            gap: 30px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #b0bec5;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            background-color: #37474f;
+            color: white;
+            border: 1px solid #546e7a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: var(--water-color);
+        }
+
+        .status-text {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.4);
+            padding: 10px 15px;
+            border-radius: 4px;
+            border-left: 4px solid var(--water-color);
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SCADA Simulación Pozo y Depósito</h1>
+
+    <!-- Contenedor Principal del SCADA -->
+    <div class="scada-container" id="scada-view">
+        
+        <!-- Estado en texto -->
+        <div class="status-text">
+            ESTADO: <span id="txt-estado" style="color: #ffeb3b;">VACÍO</span>
+        </div>
+
+        <!-- Tuberías -->
+        <div class="pipe-v1"><div class="flow"></div></div>
+        <div class="pipe-h"><div class="flow"></div></div>
+        <div class="pipe-v2"><div class="flow"></div></div>
+
+        <!-- Estructura Pozo -->
+        <div class="ground">
+            <div class="well">
+                <div class="well-water"></div>
+                <!-- Bomba / Motor -->
+                <div id="bomba-motor" class="pump">BOMBA</div>
+            </div>
+        </div>
+
+        <!-- Depósito -->
+        <div class="tank-container">
+            <div id="agua-deposito" class="tank-water"></div>
+        </div>
+
+        <!-- Boyas Flotadoras visuales -->
+        <div id="sensor-alta" class="sensor"></div>
+        <div id="sensor-baja" class="sensor"></div>
+
+    </div>
+
+    <!-- Panel de Control Externo (Escribir señales a mano) -->
+    <div class="simulation-panel">
+        <div class="control-group">
+            <label for="select-nivel">Señales de las Boyas (Nivel):</label>
+            <select id="select-nivel" onchange="actualizarSCADA()">
+                <option value="vacio">Depósito Vacío (Ambas boyas OFF)</option>
+                <option value="medio">Depósito Medio (Boya Baja ON, Alta OFF)</option>
+                <option value="lleno">Depósito Lleno (Ambas boyas ON)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="select-bomba">Señal de Marcha Bomba:</label>
+            <select id="select-bomba" onchange="actualizarSCADA()">
+                <option value="stop">STOP (Desconectado / Blanco)</option>
+                <option value="run">RUN (Funcionando / Verde)</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+        function actualizarSCADA() {
+            // 1. Obtener los valores seleccionados a mano por el usuario
+            const nivel = document.getElementById('select-nivel').value;
+            const estadoBomba = document.getElementById('select-bomba').value;
+
+            // Elementos del DOM a modificar
+            const agua = document.getElementById('agua-deposito');
+            const sensorAlta = document.getElementById('sensor-alta');
+            const sensorBaja = document.getElementById('sensor-baja');
+            const motor = document.getElementById('bomba-motor');
+            const scadaView = document.getElementById('scada-view');
+            const txtEstado = document.getElementById('txt-estado');
+
+            // 2. Lógica y visualización del Depósito y las Boyas
+            if (nivel === 'vacio') {
+                agua.style.height = '10%'; // Muestra un mínimo de agua
+                sensorAlta.classList.remove('active');
+                sensorBaja.classList.remove('active');
+                txtEstado.innerText = 'VACÍO';
+                txtEstado.style.color = '#f44336';}
+            else if (nivel === 'medio') {agua.style.height = '50%'; // Nivel mediosensorAlta.classList.remove('active');
+            // sensorBaja.classList.add('active');
+            //  // Boya inferior flotandotxtEstado.innerText = 'MEDIO';
+            // txtEstado.style.color = '#ffeb3b';}else if (nivel === 'lleno') {agua.style.height = '95%'; 
+            // // Depósito llenosensorAlta.classList.add('active'); 
+            // // Ambas boyas activassensorBaja.classList.add('active');
+            // txtEstado.innerText = 'LLENO';txtEstado.style.color = '#4caf50';}
+            // // 3. Lógica y visualización de la Bomba y Animación de Flujoif (estadoBomba === 'run') {motor.classList.add('running');scadaView.classList.add('running'); 
+            // // Activa la animación del agua en las tuberías} else {motor.classList.remove('running');scadaView.classList.remove('running'); // Detiene el flujo
+            
+        }
+    }

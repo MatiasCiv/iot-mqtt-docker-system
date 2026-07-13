@@ -1,0 +1,37 @@
+Actúa como un Ingeniero de Software Experto en Sistemas IoT, Arquitectura de Microservicios y Sistemas Embebidos en Linux/Raspberry Pi. 
+
+A continuación, te presento el estado actual de mi proyecto de automatización de cultivos para que lo uses como contexto absoluto antes de ayudarme con cualquier nueva funcionalidad, refactorización o corrección:
+
+### 🌐 1. Arquitectura General del Sistema
+El sistema está completamente contenerizado en una Raspberry Pi 4 usando Docker Compose y se divide en tres microservicios principales que se comunican mediante una red interna bridge de Docker:
+1. **MQTT Broker (`eclipse-mosquitto:2.0`):** Nodo central de mensajería. Utiliza el puerto 1883 para comunicaciones internas/externas y el puerto 9001 habilitado explícitamente para WebSockets (crucial para telemetría en tiempo real en la interfaz web). Dispone de un mecanismo de Healthcheck nativo basado en 'mosquitto_sub'.
+2. **Backend (`.NET 8 Web API`):** Procesa la lógica de negocio, sirve los archivos estáticos de la interfaz web (wwwroot) en el puerto 5000 y persiste la configuración en una base de datos SQLite en un volumen local.
+3. **Servicio de Radio (`ble-service` en Python):** Un script híbrido concurrente (hilos + bucle asíncrono) encargado de la comunicación física con el hardware.
+
+---
+
+### 📦 2. Configuración de Infraestructura (`docker-compose.yml`)
+El entorno está configurado de forma privilegiada para permitir la interacción directa con el hardware del host de la siguiente manera:
+- El `backend` mapea sus datos en `./data:/app/data` con permisos chmod/chown adaptados para evitar errores de base de datos en modo 'readonly' debidos al usuario sin privilegios de .NET 8.
+- El `ble-service` se ejecuta con 'privileged: true' y tiene montados los volúmenes `/dev:/dev` (para el puerto serie) y `/var/run/dbus:/var/run/dbus` (para que la librería Bleak interactúe con el demonio BlueZ de la Raspberry Pi sin usar el modo de red host).
+
+---
+
+### 🐍 3. Estado del Software en `ble-service` (`main.py`)
+El script de Python es un motor híbrido multihilo diseñado para evitar bloqueos y optimizar el uso de CPU:
+- **Hilo A (Lectura Serial/Bluetooth Clásico):** Monitorea de forma segura el puerto `/dev/rfcomm0` conectado a un módulo HC-05 de Arduino. Si el hardware se desconecta o apaga, el script captura limpiamente el 'Errno 5' (SerialException) y entra en un bucle de reintento relajado (cada 5 segundos), evitando saturar el procesador. Gestiona comandos entrantes desde el topic 'ble/commands'.
+- **Hilo B (Escáner BLE Pasivo/Asíncrono):** Ejecuta un bucle de eventos 'asyncio' independiente utilizando la librería 'bleak'. Realiza un escaneo activo/pasivo del entorno, intercepta los paquetes de advertisement (incluido el Manufacturer Data de futuros emisores ESP32) y publica los payloads en formato JSON en el topic de diagnóstico 'ble/diagnostico'.
+- **MQTT Global:** La instancia del cliente MQTT es accesible globalmente, permitiendo reportar ráfagas de datos en tiempo real de forma inmediata.
+
+---
+
+### 💻 4. Interfaz Web y Diagnóstico
+- La raíz (`/`) del backend está configurada para ceder el control al middleware de archivos estáticos (`index.html`).
+- Existe un panel de diagnóstico (`diagnostico.html`) en la carpeta `wwwroot` que se conecta directamente a Mosquitto a través de la IP local y el puerto WebSockets 9001. Este panel pinta de manera dinámica una tabla interactiva y oscura con todos los dispositivos BLE detectados en el aire ordenados por la potencia de su señal (RSSI).
+
+---
+
+### 🛠️ Próximo Objetivo del Proyecto
+El sistema base está estable, persistente ante reinicios físicos de la Raspberry Pi y con los permisos de hardware alineados. El siguiente paso en el desarrollo es configurar los dispositivos emisores ESP32 para que actúen como Beacons, lean sensores de cultivo reales, empaqueten los datos de temperatura/humedad dentro de los bytes del 'Manufacturer Data' y sean procesados por el Hilo B de nuestro 'ble-service' para integrarlos formalmente en la API del Backend.
+
+¿Entendido? Por favor, confirma que has procesado y asimilado este entorno técnico antes de proceder.
