@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diagnóstico BLE - Sistema IoT</title>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #121214; color: #e1e1e6; margin: 20px; }
         h1 { color: #4ade80; border-bottom: 2px solid #202024; padding-bottom: 10px; }
@@ -22,7 +21,7 @@
 <body>
 
     <h1>📡 Panel de Diagnóstico BLE en Tiempo Real</h1>
-    <p>Escaneando el entorno desde la Raspberry Pi 4. Los dispositivos aparecerán y se actualizarán automáticamente.</p>
+    <p>Escaneando el entorno desde la Raspberry Pi 4. Datos consultados desde SQLite.</p>
 
     <table class="grid">
         <thead>
@@ -39,73 +38,56 @@
     </table>
 
     <script>
-        // 🔄 Detección dinámica de entorno (Local vs Cloudflare)
-        const isSecure = window.location.protocol === 'https:';
+        async function cargarDiagnostico() {
+            try {
+                // Petición HTTP directa al endpoint que ya tenías en C#
+                const respuesta = await fetch('/api/diagnostico');
+                const logs = await respuesta.json();
 
-        // Si es HTTPS (Cloudflare), usamos 'wss://' y enviamos por el túnel usando la ruta '/mqtt'
-        // Si es HTTP (Red local), usamos 'ws://' conectando directamente al puerto 9001
-        const protocol = isSecure ? 'wss://' : 'ws://';
-        const port = isSecure ? '' : ':9001';
-        const path = isSecure ? '/mqtt' : '';
-
-        const brokerUrl = `${protocol}${window.location.hostname}${port}${path}`;
-        console.log("Conectando al broker MQTT en:", brokerUrl);
-        
-        const client = mqtt.connect(brokerUrl);
-        const dispositivos = {};
-
-        client.on('connect', () => {
-            console.log('✅ Conectado a Mosquitto vía WebSockets con éxito');
-            client.subscribe('ble/diagnostico');
-        });
-
-        client.on('error', (err) => {
-            console.error('❌ Error de conexión MQTT:', err);
-        });
-
-        client.on('message', (topic, message) => {
-            if (topic === 'ble/diagnostico') {
-                const data = JSON.parse(message.toString());
-                
-                // Guardar o actualizar el dispositivo en nuestro objeto en memoria
-                dispositivos[data.mac] = {
-                    nombre: data.nombre,
-                    rssi: data.rssi,
-                    manu_data: JSON.stringify(data.manufacturer_data),
-                    timestamp: new Date().toLocaleTimeString()
-                };
-
-                renderizarTabla();
+                renderizarTabla(logs);
+            } catch (error) {
+                console.error("Error al obtener los logs de diagnóstico:", error);
             }
-        });
+        }
 
-        function renderizarTabla() {
+        function renderizarTabla(logs) {
             const tbody = document.getElementById('dispositivos-lista');
             tbody.innerHTML = '';
 
-            // Ordenar los dispositivos por intensidad de señal (de mayor a menor)
-            const listaOrdenada = Object.keys(dispositivos).sort((a, b) => dispositivos[b].rssi - dispositivos[a].rssi);
+            // Agrupar en el cliente para mostrar solo el registro más reciente de cada MAC
+            const ultimosPorMac = {};
+            logs.forEach(log => {
+                if (!ultimosPorMac[log.mac]) {
+                    ultimosPorMac[log.mac] = log;
+                }
+            });
 
-            listaOrdenada.forEach(mac => {
-                const dev = dispositivos[mac];
-                
-                // Determinar el color del badge de señal según los dBm
+            // Convertir a array y ordenar por la mejor señal (RSSI)
+            const dispositivos = Object.values(ultimosPorMac).sort((a, b) => b.rssi - a.rssi);
+
+            dispositivos.forEach(dev => {
                 let rssiClass = 'signal-good';
                 if (dev.rssi < -80) rssiClass = 'signal-bad';
                 else if (dev.rssi < -65) rssiClass = 'signal-medium';
 
+                const fecha = new Date(dev.fechaCaptura + "Z").toLocaleTimeString();
+
                 const row = `
                     <tr>
-                        <td style="font-weight: bold; color: #60a5fa;">${mac}</td>
-                        <td>${dev.nombre}</td>
+                        <td style="font-weight: bold; color: #60a5fa;">${dev.mac}</td>
+                        <td>${dev.nombre || 'Desconocido'}</td>
                         <td><span class="rssi-badge ${rssiClass}">${dev.rssi} dBm</span></td>
-                        <td class="manu-data">${dev.manu_data !== '{}' ? dev.manu_data : '<span style="color:#52525b;">Ninguno</span>'}</td>
-                        <td style="color: #71717a; font-size: 13px;">${dev.timestamp}</td>
+                        <td class="manu-data">${dev.manufacturerData && dev.manufacturerData !== '{}' ? dev.manufacturerData : '<span style="color:#52525b;">Ninguno</span>'}</td>
+                        <td style="color: #71717a; font-size: 13px;">${fecha}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             });
         }
+
+        // Refrescar automáticamente cada 3 segundos
+        setInterval(cargarDiagnostico, 3000);
+        cargarDiagnostico();
     </script>
 </body>
 </html>
