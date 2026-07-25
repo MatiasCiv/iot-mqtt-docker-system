@@ -128,8 +128,11 @@ mqttClient.ApplicationMessageReceivedAsync += async e =>
             if (totalRegistros > 1000)
             {
                 var exceso = totalRegistros - 1000;
+                
+                // 💡 CORRECCIÓN: Ordenamos por 'Id' ascendente para asegurar 
+                // que borramos los registros con los IDs más antiguos de verdad
                 var antiguos = await db.BleScanLogs
-                    .OrderBy(x => x.FechaCaptura)
+                    .OrderBy(x => x.Id) 
                     .Take(exceso)
                     .ToListAsync();
 
