@@ -35,12 +35,20 @@
             </tr>
         </thead>
         <tbody id="dispositivos-lista">
-            </tbody>
+        </tbody>
     </table>
 
     <script>
-        // Conectar al puerto WebSockets de Mosquitto usando la IP actual de la Pi o localhost
-        const brokerUrl = `ws://${window.location.hostname}:9001`;
+        // 🔄 Detección dinámica de entorno (Local vs Cloudflare)
+        const isSecure = window.location.protocol === 'https:';
+
+        // Si es HTTPS (Cloudflare), usamos 'wss://' y enviamos por el túnel usando la ruta '/mqtt'
+        // Si es HTTP (Red local), usamos 'ws://' conectando directamente al puerto 9001
+        const protocol = isSecure ? 'wss://' : 'ws://';
+        const port = isSecure ? '' : ':9001';
+        const path = isSecure ? '/mqtt' : '';
+
+        const brokerUrl = `${protocol}${window.location.hostname}${port}${path}`;
         console.log("Conectando al broker MQTT en:", brokerUrl);
         
         const client = mqtt.connect(brokerUrl);
@@ -49,6 +57,10 @@
         client.on('connect', () => {
             console.log('✅ Conectado a Mosquitto vía WebSockets con éxito');
             client.subscribe('ble/diagnostico');
+        });
+
+        client.on('error', (err) => {
+            console.error('❌ Error de conexión MQTT:', err);
         });
 
         client.on('message', (topic, message) => {
