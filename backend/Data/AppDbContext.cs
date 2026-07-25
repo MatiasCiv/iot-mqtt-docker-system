@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
     public DbSet<Cultivo> Cultivos => Set<Cultivo>();
     public DbSet<Etapa> Etapas => Set<Etapa>();
     public DbSet<RelayStatus> RelayStatuses { get; set; }
+    public DbSet<BleScanLog> BleScanLogs { get; set; }
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {

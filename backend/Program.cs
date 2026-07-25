@@ -65,6 +65,7 @@ mqttClient.ConnectedAsync += async e =>
     Console.WriteLine("✅ Conectado a MQTT");
     await mqttClient.SubscribeAsync("ble/readings");
     await mqttClient.SubscribeAsync("ble/status");  
+    await mqttClient.SubscribeAsync("ble/diagnostico");
     Console.WriteLine("✅ Suscrito a topics");
 };
 
@@ -100,6 +101,40 @@ mqttClient.ApplicationMessageReceivedAsync += async e =>
                 db.RelayStatuses.Add(estado);
                 await db.SaveChangesAsync();
                 Console.WriteLine("🔌 Estado relé guardado");
+            }
+        }
+        else if (payload.Contains("mac") && payload.Contains("rssi"))
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            using var doc = JsonDocument.Parse(payload);
+            var root = doc.RootElement;
+
+            var log = new BleScanLog
+            {
+                Mac = root.GetProperty("mac").GetString() ?? "",
+                Nombre = root.GetProperty("nombre").GetString() ?? "Desconocido",
+                Rssi = root.GetProperty("rssi").GetInt32(),
+                ManufacturerData = root.GetProperty("manufacturer_data").ToString(),
+                FechaCaptura = DateTime.UtcNow
+            };
+
+            db.BleScanLogs.Add(log);
+            await db.SaveChangesAsync();
+
+            // 🛑 CONTROL DE LÍMITE: Mantener la tabla en un tope de 1000 registros (FIFO)
+            var totalRegistros = await db.BleScanLogs.CountAsync();
+            if (totalRegistros > 1000)
+            {
+                var exceso = totalRegistros - 1000;
+                var antiguos = await db.BleScanLogs
+                    .OrderBy(x => x.FechaCaptura)
+                    .Take(exceso)
+                    .ToListAsync();
+
+                db.BleScanLogs.RemoveRange(antiguos);
+                await db.SaveChangesAsync();
             }
         }
     }
@@ -239,6 +274,17 @@ app.MapPost("/relay-control", async (IMqttClient mqttClient, RelayRequest data) 
     await mqttClient.PublishAsync(mqttMessage);
     Console.WriteLine($"📡 Enviado a Arduino: {payload}");
     return Results.Ok(new { mensaje = "Comando enviado" });
+});
+
+app.MapGet("/api/diagnostico", async (AppDbContext db) =>
+{
+    // Trae las 50 capturas BLE más recientes guardadas por el servicio MQTT
+    var logs = await db.BleScanLogs
+        .OrderByDescending(x => x.FechaCaptura)
+        .Take(50)
+        .ToListAsync();
+
+    return Results.Ok(logs);
 });
 
 //app.MapGet("/", () => Results.Text("<h1>🚀 Backend IoT operativo en .NET 8</h1>", "text/html"));
